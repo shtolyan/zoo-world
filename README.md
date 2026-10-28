@@ -53,3 +53,5 @@ unity build . --target StandaloneOSX --output-path Builds/macOS/ZooWorld.app
 Close the project's Editor before a batch test/build; only one process can own its asset database. The demo content is already committed. **Tools → Zoo World → Rebuild demo content** recreates its assets and scene through the Unity Editor API; it overwrites demo content, so commit custom changes first.
 
 Generated `Library`, logs, build output and test reports are ignored by Git. Unity `.meta` files, package locks, data, prefabs and the scene are committed. Only Unity packages are required; no separate DI framework or commercial assets need installing.
+
+The local validation pass completed **30 EditMode + 8 PlayMode tests** and a **universal macOS build**. See [Validation](Documentation/Validation.md) for the verified source revision and artifact locations.
