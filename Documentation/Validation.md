@@ -2,6 +2,8 @@
 
 ## Responsibility refactor — 28 October 2026
 
+Validated implementation: [`ee97a44`](https://github.com/shtolyan/zoo-world/commit/ee97a44). Subsequent documentation updates do not change the tested C# source, scene, prefabs or settings.
+
 Unity **6000.4.6f1**, Apple M1: **62 EditMode + 24 PlayMode tests passed**, zero failures or skips. `bash Scripts/validate.sh` ran both suites; reports are `TestResults/refactor-editmode.xml` and `TestResults/refactor-playmode.xml` with JUnit equivalents.
 
 Additional coverage includes action clocks, invalid time steps, failed preparation with no population notification, initialized first activation and pool reuse, a new species recombining existing assets, pause during consumption, safe vertical headings, non-finite coordinates, teardown order, all 1000 weighted catalog entries, and large finite weight sums. Existing physics, bite, UI, spawn, sound and pooling checks continue to pass.

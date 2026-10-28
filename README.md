@@ -6,6 +6,13 @@ A small 3D food-chain simulation made with **Unity 6000.4.6f1**. Frogs hop, arti
 
 ## Run
 
+Clone the repository before opening it in Unity:
+
+```sh
+git clone https://github.com/shtolyan/zoo-world.git
+cd zoo-world
+```
+
 1. Open this folder with Unity **6000.4.6f1**.
 2. Open `Assets/ZooWorld/Scenes/ZooWorld.unity`.
 3. Press **Play**. The scene starts with 12 frogs and 4 snakes; one additional animal arrives every random **1–2 simulation seconds**.
@@ -37,9 +44,9 @@ See [Architecture](Documentation/Architecture.md) for extension instructions and
 ## Add an animal
 
 1. Create a prefab with `AnimalAgent`, a dynamic `Rigidbody` and a `SphereCollider`. Assign its visual and shadow transforms; keep visual-only geometry colliders off.
-2. Reuse a movement asset, or derive `MovementDefinition` to create another `ILocomotion` strategy.
-3. Use **Create → Zoo World → Animal Species**. Assign its prefab, movement, diet, mass, spawn weight and initial population.
-4. Add that asset to `Assets/ZooWorld/Data/Simulation.asset` → **Species**.
+2. Reuse a movement asset, or derive `MovementDefinition` to create a fresh `ILocomotion` strategy per life. Override `IsValid` to validate its settings before spawning.
+3. Use **Create → Zoo World → Animal Species**. Assign its prefab, movement, diet, mass, turn speed, spawn weight and initial population.
+4. Add that asset to `Assets/ZooWorld/Data/Simulation.asset` → **Species**, then restart Play mode to reload the catalog.
 
 That is enough for automatic spawning, pooling, food-chain interactions and counters. The manual buttons in the demo scene are optional shortcuts for its two supplied species.
 
@@ -51,7 +58,13 @@ The four mastered mono WAVs are committed in `Assets/ZooWorld/Audio`, and their 
 
 ## Validate and build
 
-Use **Window → General → Test Runner** for EditMode and PlayMode tests. With the Unity CLI installed, `bash Scripts/validate.sh` runs both suites and the population physics probe without a player build. Individual commands:
+Use **Window → General → Test Runner** for EditMode and PlayMode tests. With the Unity CLI installed, run both suites and the population physics probe without a player build:
+
+```sh
+bash Scripts/validate.sh
+```
+
+NUnit/JUnit reports and the physics measurements are written to `TestResults/`; Editor logs are in `Logs/`. Individual commands:
 
 ```sh
 unity test . --mode EditMode --report-format nunit,junit --output TestResults/editmode.xml
