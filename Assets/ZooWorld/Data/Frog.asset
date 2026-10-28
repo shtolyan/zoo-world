@@ -17,6 +17,7 @@ MonoBehaviour:
   Prefab: {fileID: 980917550872192401, guid: 3b72757aca71246c98182c7aacd6e155, type: 3}
   Movement: {fileID: 11400000, guid: 21897185468b54489a8b19268e89bcea, type: 2}
   Mass: 1
+  TurnSpeed: 360
   SpawnWeight: 3
   InitialPopulation: 12
   Accent: {r: 0.7882353, g: 0.92941177, b: 0.54509807, a: 1}

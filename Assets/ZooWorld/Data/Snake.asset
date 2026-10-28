@@ -16,7 +16,8 @@ MonoBehaviour:
   Diet: 1
   Prefab: {fileID: 1311441618159096218, guid: b9eb7b77271e4415c94c0161eb2bcf94, type: 3}
   Movement: {fileID: 11400000, guid: e8c290b6c0a424cc1bc5413f063b2457, type: 2}
-  Mass: 1.4
+  Mass: 2.2
+  TurnSpeed: 130
   SpawnWeight: 1
   InitialPopulation: 4
   Accent: {r: 1, g: 0.6901961, b: 0.5294118, a: 1}

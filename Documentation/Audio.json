@@ -1,0 +1,36 @@
+{
+  "provider": "ElevenLabs",
+  "model": "eleven_text_to_sound_v2",
+  "sampleRate": 44100,
+  "mastering": "70 Hz high-pass, 4 kHz low-pass, 25 ms attack, 120 ms fade, per-cue peak trim",
+  "cues": {
+    "Spawn": {
+      "prompt": "A tiny friendly rounded water droplet blooming gently upward, a welcoming animal appearance cue. Single isolated cozy nature game sound. Soft rounded attack and smooth short decay, warm and understated, no harsh treble, no click, no crackle, no distortion, no voice, no speech, no music or background ambience.",
+      "durationSeconds": 0.6,
+      "peakDbFS": -18.0,
+      "rmsDbFS": -36.08,
+      "sha256": "f4001900f01c8736224153de0773d6d83551e4ebc9658e399a3d1d10fc43b241"
+    },
+    "Hop": {
+      "prompt": "One soft cartoon frog hop, a small rubbery low boing with a light muted grass landing, very gentle and tactile. Single isolated cozy nature game sound. Soft rounded attack and smooth short decay, warm and understated, no harsh treble, no click, no crackle, no distortion, no voice, no speech, no music or background ambience.",
+      "durationSeconds": 0.48,
+      "peakDbFS": -22.0,
+      "rmsDbFS": -37.96,
+      "sha256": "94bb02a7c867b2683c110dcea3d4ffcd89ec0cfcc241e540c8c70847199d1098"
+    },
+    "Eat": {
+      "prompt": "Two tiny soft cartoon munch sounds, shup shup, a cute creature eating a berry. Muted squishy movement, no saliva or crunch. Single isolated cozy nature game sound. Soft rounded attack and smooth short decay, warm and understated, no harsh treble, no click, no crackle, no distortion, no voice, no speech, no music or background ambience.",
+      "durationSeconds": 0.68,
+      "peakDbFS": -18.0,
+      "rmsDbFS": -40.46,
+      "sha256": "add60f635a05294073ff8dbdf6b80697a141748e0ec9857d71c3c10066dce627"
+    },
+    "Click": {
+      "prompt": "One quiet warm wooden marimba note, a gentle felt mallet plop for a game button, rounded and very short. Single isolated cozy nature game sound. Soft rounded attack and smooth short decay, warm and understated, no harsh treble, no click, no crackle, no distortion, no voice, no speech, no music or background ambience.",
+      "durationSeconds": 0.48,
+      "peakDbFS": -21.0,
+      "rmsDbFS": -34.18,
+      "sha256": "450631fa243aa5b593aa16d5fb31abbab2b949b39314da101554ab6bf462de36"
+    }
+  }
+}

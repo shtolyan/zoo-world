@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc84fc5cdff8b4111a73abade962cfb4, type: 3}
+  m_Name: Sounds
+  m_EditorClassIdentifier: ZooWorld.Runtime::ZooWorld.SoundBank
+  Spawn: {fileID: 8300000, guid: f91720cbc0d4e44e0bf41e28b464b10a, type: 3}
+  Hop: {fileID: 8300000, guid: 5cd18422ba5a741aab13288e60f813aa, type: 3}
+  Eat: {fileID: 8300000, guid: 5993fb7271aac470b970abb9c7d198a4, type: 3}
+  Click: {fileID: 8300000, guid: 03cdde1033e2f4f8fa4850e1821ee79c, type: 3}
+  Volume: 0.65

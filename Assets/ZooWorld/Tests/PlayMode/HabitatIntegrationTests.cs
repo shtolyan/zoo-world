@@ -14,7 +14,7 @@ namespace ZooWorld.Tests
         {
             yield return SceneManager.LoadSceneAsync("ZooWorld");
             yield return null;
-            simulation = Object.FindFirstObjectByType<ZooSimulation>();
+            simulation = Object.FindAnyObjectByType<ZooSimulation>();
             Assert.That(simulation, Is.Not.Null);
             simulation.ResetSimulation(false);
         }
@@ -103,10 +103,82 @@ namespace ZooWorld.Tests
 
         [UnityTest] public IEnumerator ScheduledArrivalHappensAfterOneToTwoSeconds()
         {
+            float began = Time.time;
             yield return new WaitForSeconds(0.9f);
             Assert.That(simulation.Model.Snapshot.TotalSpawned, Is.Zero);
-            yield return new WaitForSeconds(1.2f);
+            while (simulation.Model.Snapshot.TotalSpawned == 0 && Time.time - began < 2.2f) yield return null;
             Assert.That(simulation.Model.Snapshot.TotalSpawned, Is.EqualTo(1));
+            Assert.That(Time.time - began, Is.InRange(0.99f, 2.15f));
+        }
+
+        [UnityTest] public IEnumerator SnakeHasDynamicConnectedBodyThatBendsBehindItsHead()
+        {
+            var snake = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.zero, Vector3.forward);
+            var body = snake.GetComponent<TrailBody>();
+            Assert.That(body.SegmentCount, Is.EqualTo(12));
+            for (int i = 0; i < 35; i++) yield return new WaitForFixedUpdate();
+            float bend = 0;
+            Vector3 previous = snake.Body.position + Vector3.up * 0.3f;
+            for (int i = 0; i < body.SegmentCount; i++)
+            {
+                var segment = body.GetSegment(i);
+                Assert.That(segment.isKinematic, Is.False);
+                Assert.That(segment.GetComponent<Collider>().isTrigger, Is.False);
+                Assert.That(segment.GetComponent<ConfigurableJoint>().connectedBody, Is.Not.Null);
+                Assert.That(Vector3.Distance(segment.position, previous), Is.LessThan(body.Spacing + 0.14f));
+                bend = Mathf.Max(bend, Mathf.Abs(segment.position.x - snake.Body.position.x));
+                previous = segment.position;
+            }
+            Assert.That(bend, Is.GreaterThan(0.08f));
+            Assert.That(snake.IsAlive, Is.True);
+        }
+
+        [UnityTest] public IEnumerator ContactWithTheTailCountsOnePreyDeathAndOneEatingSound()
+        {
+            var snake = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 4, Vector3.right);
+            var tail = snake.GetComponent<TrailBody>();
+            Vector3 tailPosition = tail.GetSegment(tail.SegmentCount - 1).position; tailPosition.y = 0;
+            var frog = simulation.SpawnAt(simulation.Settings.Species[0], tailPosition, Vector3.back);
+            Assert.That(Vector3.Distance(frog.transform.position, snake.transform.position), Is.GreaterThan(2));
+            yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate(); yield return null;
+            Assert.That(frog.IsAlive, Is.False); Assert.That(snake.IsAlive, Is.True);
+            Assert.That(simulation.Model.Snapshot.DeadPrey, Is.EqualTo(1));
+            Assert.That(simulation.Audio.EatCueCount, Is.EqualTo(1));
+        }
+
+        [UnityTest] public IEnumerator ReusedSnakeResetsEveryPhysicalSegmentAndItsTrail()
+        {
+            var snake = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.zero, Vector3.forward);
+            long oldId = snake.Life.Id;
+            for (int i = 0; i < 25; i++) yield return new WaitForFixedUpdate();
+            simulation.ResetSimulation(false);
+            var reused = simulation.SpawnAt(simulation.Settings.Species[1], new Vector3(-7, 0, 4), Vector3.right);
+            Assert.That(reused, Is.SameAs(snake)); Assert.That(reused.Life.Id, Is.GreaterThan(oldId));
+            var body = reused.GetComponent<TrailBody>();
+            for (int i = 0; i < body.SegmentCount; i++)
+            {
+                Vector3 expected = new Vector3(-7 - (i + 1) * body.Spacing, 0.3f, 4);
+                Assert.That(Vector3.Distance(body.GetSegment(i).position, expected), Is.LessThan(0.001f),
+                    $"Segment {i}: physics={body.GetSegment(i).position}, transform={body.GetSegment(i).transform.position}, expected={expected}");
+                Assert.That(body.GetSegment(i).linearVelocity.sqrMagnitude, Is.LessThan(0.001f));
+            }
+        }
+
+        [UnityTest] public IEnumerator SoundButtonMutesTheCuesAndEatingCooldownPreventsStacking()
+        {
+            Assert.That(simulation.Audio.Sounds.Spawn, Is.Not.Null);
+            Assert.That(simulation.Audio.Sounds.Hop, Is.Not.Null);
+            Assert.That(simulation.Audio.Sounds.Eat, Is.Not.Null);
+            Assert.That(simulation.Audio.Sounds.Click, Is.Not.Null);
+            simulation.Hud.SoundButton.onClick.Invoke();
+            Assert.That(simulation.Audio.IsMuted, Is.True);
+            simulation.Audio.Eat(Vector3.zero);
+            Assert.That(simulation.Audio.EatCueCount, Is.Zero);
+            simulation.Hud.SoundButton.onClick.Invoke();
+            Assert.That(simulation.Audio.IsMuted, Is.False);
+            simulation.Audio.Clear(); simulation.Audio.Eat(Vector3.zero); simulation.Audio.Eat(Vector3.zero);
+            Assert.That(simulation.Audio.EatCueCount, Is.EqualTo(1));
+            yield return null;
         }
     }
 }

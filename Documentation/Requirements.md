@@ -22,3 +22,5 @@ Source: the user-provided two-page Zoo World specification. The original PDF is 
 | Publish a Git repository | Public GitHub repository requested by the user |
 
 Extra controls are for inspection: pause/resume, 1×/2×, restart and manual species spawning. They do not replace scheduled automatic arrivals.
+
+Follow-up improvements: frogs are 20% larger, snakes have a larger head and a 12-part physical body following the head's path, and four quiet ElevenLabs sound effects cover appearance, hops, eating and buttons. Sound can be muted with M or the uGUI button. Core food-chain rules and the 1–2 second spawn schedule are unchanged.

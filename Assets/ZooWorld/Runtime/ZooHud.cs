@@ -9,10 +9,13 @@ namespace ZooWorld
     {
         public Text DeadPrey, DeadPredators, Living, PopulationDetail, Elapsed, NextSpawn;
         public Text PauseCaption, SpeedCaption, StateCaption;
+        public Text SoundCaption;
         public Button PauseButton, SpeedButton, ResetButton;
+        public Button SoundButton;
         public Button[] SpawnButtons;
         public RectTransform ToastLayer;
         public event Action PauseRequested, SpeedRequested, ResetRequested;
+        public event Action SoundRequested;
         public event Action<int> SpawnRequested;
 
         private void Awake()
@@ -20,6 +23,7 @@ namespace ZooWorld
             PauseButton.onClick.AddListener(() => PauseRequested?.Invoke());
             SpeedButton.onClick.AddListener(() => SpeedRequested?.Invoke());
             ResetButton.onClick.AddListener(() => ResetRequested?.Invoke());
+            if (SoundButton != null) SoundButton.onClick.AddListener(() => SoundRequested?.Invoke());
             for (int i = 0; i < SpawnButtons.Length; i++)
             {
                 int index = i;
@@ -43,5 +47,8 @@ namespace ZooWorld
             SpeedCaption.text = fast ? "Speed  2x" : "Speed  1x";
             StateCaption.text = paused ? "II   PAUSED" : "●   LIVE HABITAT";
         }
+
+        public void PresentAudio(bool muted)
+        { if (SoundCaption != null) SoundCaption.text = muted ? "Sound off [M]" : "Sound on [M]"; }
     }
 }

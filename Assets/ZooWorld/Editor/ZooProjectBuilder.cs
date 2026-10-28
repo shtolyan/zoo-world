@@ -30,7 +30,7 @@ namespace ZooWorld.Editor
         {
             AssetDatabase.DeleteAsset("Assets/Scenes");
             AssetDatabase.DeleteAsset("Assets/InputSystem_Actions.inputactions");
-            foreach (string folder in new[] { "Art", "Data", "Prefabs", "Scenes" }) Directory.CreateDirectory($"{Root}/{folder}");
+            foreach (string folder in new[] { "Art", "Audio", "Data", "Prefabs", "Scenes" }) Directory.CreateDirectory($"{Root}/{folder}");
             AssetDatabase.Refresh();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             rounded = CreateRoundedSprite();
@@ -63,6 +63,8 @@ namespace ZooWorld.Editor
             snake.DisplayName = "Snake"; snake.Diet = Diet.Predator; snake.Prefab = snakePrefab; snake.Movement = linear;
             snake.Mass = 1.4f; snake.SpawnWeight = 1; snake.InitialPopulation = 4; snake.Accent = Coral;
             var settings = Asset<SimulationSettings>($"{Root}/Data/Simulation.asset");
+            frog.TurnSpeed = 360;
+            snake.TurnSpeed = 130; snake.Mass = 2.2f;
             settings.Species = new[] { frog, snake }; settings.HabitatSize = new Vector2(24, 13);
             settings.MinimumSpawnInterval = 1; settings.MaximumSpawnInterval = 2;
             foreach (Object asset in new Object[] { hop, linear, frog, snake, settings }) EditorUtility.SetDirty(asset);
@@ -91,6 +93,8 @@ namespace ZooWorld.Editor
             var composition = new GameObject("Zoo World | Composition Root").AddComponent<ZooSimulation>();
             composition.Settings = settings; composition.WorldCamera = camera; composition.Hud = hud;
             composition.AnimalContainer = new GameObject("Animals (pooled at runtime)").transform;
+            composition.Audio = new GameObject("Habitat Sounds | ElevenLabs").AddComponent<HabitatAudio>();
+            composition.Audio.Sounds = BuildSoundBank();
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             PlayerSettings.companyName = "Anatoly Sheshenin"; PlayerSettings.productName = "Zoo World";
@@ -154,6 +158,7 @@ namespace ZooWorld.Editor
                 Shape("Pupil", PrimitiveType.Sphere, visual, new Vector3(side * 0.23f, 0.69f, 0.32f), new Vector3(0.12f, 0.08f, 0.13f), black);
             }
             var agent = root.GetComponent<AnimalAgent>(); agent.ConfigureVisuals(visual, shadow);
+            root.transform.localScale = Vector3.one * 1.2f;
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{Root}/Prefabs/Frog.prefab").GetComponent<AnimalAgent>();
             Object.DestroyImmediate(root);
             return prefab;
@@ -162,18 +167,47 @@ namespace ZooWorld.Editor
         private static AnimalAgent BuildSnake(Material gold, Material stripe, Material white, Material black, Material shade, PhysicsMaterial contact)
         {
             var root = AnimalRoot("Snake", contact, out Transform visual, out Transform shadow, shade);
-            for (int i = 6; i >= 1; i--)
-            {
-                float size = Mathf.Lerp(0.56f, 0.13f, i / 7f);
-                Shape("Body segment", PrimitiveType.Sphere, visual, new Vector3(Mathf.Sin(i * 0.8f) * 0.16f, 0.22f, -i * 0.23f), new Vector3(size, size * 0.72f, size * 1.15f), i % 2 == 0 ? stripe : gold);
-            }
-            Shape("Head", PrimitiveType.Sphere, visual, new Vector3(0, 0.29f, 0.16f), new Vector3(0.66f, 0.48f, 0.78f), gold);
+            var head = root.GetComponent<Rigidbody>();
+            var headCollider = root.GetComponent<SphereCollider>(); headCollider.radius = 0.56f; headCollider.center = Vector3.up * 0.3f;
+            head.solverIterations = 12; head.solverVelocityIterations = 6;
+            Shape("Head", PrimitiveType.Sphere, visual, new Vector3(0, 0.34f, 0.13f), new Vector3(0.94f, 0.64f, 1.05f), gold);
             for (int side = -1; side <= 1; side += 2)
             {
-                Shape("Eye", PrimitiveType.Sphere, visual, new Vector3(side * 0.2f, 0.48f, 0.27f), Vector3.one * 0.2f, white);
-                Shape("Pupil", PrimitiveType.Sphere, visual, new Vector3(side * 0.2f, 0.57f, 0.3f), new Vector3(0.075f, 0.06f, 0.11f), black);
+                Shape("Eye", PrimitiveType.Sphere, visual, new Vector3(side * 0.27f, 0.6f, 0.29f), Vector3.one * 0.27f, white);
+                Shape("Pupil", PrimitiveType.Sphere, visual, new Vector3(side * 0.27f, 0.72f, 0.33f), new Vector3(0.1f, 0.075f, 0.14f), black);
             }
             var agent = root.GetComponent<AnimalAgent>(); agent.ConfigureVisuals(visual, shadow);
+            var trailBody = root.AddComponent<TrailBody>(); agent.ConfigureBody(trailBody);
+            const int count = 12; const float spacing = 0.28f;
+            var bodies = new Rigidbody[count]; var models = new Transform[count];
+            for (int i = 0; i < count; i++)
+            {
+                float taper = Mathf.Clamp01((i - 4) / 7f);
+                float width = Mathf.Lerp(0.76f, 0.15f, taper);
+                var part = new GameObject($"Physical body {i + 1:00}", typeof(Rigidbody), typeof(SphereCollider), typeof(ConfigurableJoint), typeof(AnimalContactRelay));
+                part.transform.SetParent(root.transform, false);
+                part.transform.localPosition = new Vector3(0, 0.3f, -(i + 1) * spacing);
+                var body = part.GetComponent<Rigidbody>(); bodies[i] = body;
+                body.useGravity = false; body.mass = 0.1f; body.linearDamping = 0.4f;
+                body.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+                body.interpolation = RigidbodyInterpolation.Interpolate; body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                body.solverIterations = 12; body.solverVelocityIterations = 6;
+                var collider = part.GetComponent<SphereCollider>(); collider.radius = width * 0.45f; collider.sharedMaterial = contact;
+                var joint = part.GetComponent<ConfigurableJoint>(); joint.connectedBody = i == 0 ? head : bodies[i - 1];
+                joint.autoConfigureConnectedAnchor = false; joint.anchor = Vector3.zero;
+                joint.connectedAnchor = i == 0 ? Vector3.up * 0.3f : Vector3.zero;
+                joint.xMotion = joint.yMotion = joint.zMotion = ConfigurableJointMotion.Limited;
+                joint.angularXMotion = joint.angularYMotion = joint.angularZMotion = ConfigurableJointMotion.Free;
+                joint.linearLimit = new SoftJointLimit { limit = spacing + 0.015f, contactDistance = 0.005f };
+                joint.projectionMode = JointProjectionMode.PositionAndRotation; joint.projectionDistance = 0.08f;
+                joint.enableCollision = false;
+                part.GetComponent<AnimalContactRelay>().Owner = agent;
+                models[i] = Shape("Segment mesh", PrimitiveType.Sphere, part.transform, Vector3.zero,
+                    new Vector3(width, width * 0.75f, Mathf.Max(width * 1.2f, spacing * 1.8f)), i % 4 < 2 ? gold : stripe).transform;
+                var bodyShadow = Shape("Ground shadow", PrimitiveType.Cylinder, part.transform, new Vector3(0, -0.28f, 0), new Vector3(width * 1.15f, 0.008f, 0.5f), shade);
+                bodyShadow.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            trailBody.Configure(bodies, models); trailBody.Spacing = spacing;
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{Root}/Prefabs/Snake.prefab").GetComponent<AnimalAgent>();
             Object.DestroyImmediate(root);
             return prefab;
@@ -193,6 +227,30 @@ namespace ZooWorld.Editor
             return root;
         }
 
+        private static SoundBank BuildSoundBank()
+        {
+            foreach (string cue in new[] { "Spawn", "Hop", "Eat", "Click" })
+            {
+                string destination = $"{Root}/Audio/{cue}.wav";
+                string staged = $"Artifacts/generated-audio/{cue}.wav";
+                if (File.Exists(staged)) File.Copy(staged, destination, true);
+                if (!File.Exists(destination)) throw new System.IO.FileNotFoundException("Generate the audio set with Scripts/generate_audio.py first.", staged);
+                AssetDatabase.ImportAsset(destination, ImportAssetOptions.ForceSynchronousImport);
+                var importer = (AudioImporter)AssetImporter.GetAtPath(destination);
+                importer.forceToMono = true;
+                var sample = importer.defaultSampleSettings;
+                sample.preloadAudioData = true;
+                sample.loadType = AudioClipLoadType.DecompressOnLoad; sample.compressionFormat = AudioCompressionFormat.PCM;
+                importer.defaultSampleSettings = sample; importer.SaveAndReimport();
+            }
+            var bank = Asset<SoundBank>($"{Root}/Data/Sounds.asset");
+            bank.Spawn = AssetDatabase.LoadAssetAtPath<AudioClip>($"{Root}/Audio/Spawn.wav");
+            bank.Hop = AssetDatabase.LoadAssetAtPath<AudioClip>($"{Root}/Audio/Hop.wav");
+            bank.Eat = AssetDatabase.LoadAssetAtPath<AudioClip>($"{Root}/Audio/Eat.wav");
+            bank.Click = AssetDatabase.LoadAssetAtPath<AudioClip>($"{Root}/Audio/Click.wav");
+            EditorUtility.SetDirty(bank); return bank;
+        }
+
         private static ZooHud BuildHud(SimulationSettings settings)
         {
             var canvas = new GameObject("Habitat HUD | uGUI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -206,6 +264,11 @@ namespace ZooWorld.Editor
             Label("Title", header.transform, "Zoo world", 46, Cream, new Vector2(35, -44), new Vector2(360, 62), FontStyle.Bold);
             Label("Subtitle", header.transform, "Small creatures. A living food chain.", 15, Muted, new Vector2(38, -111), new Vector2(380, 26));
             hud.StateCaption = Label("State", header.transform, "●   LIVE HABITAT", 12, Lime, new Vector2(38, -150), new Vector2(280, 22));
+            hud.SoundButton = Button(header.transform, "Sound", "Sound on [M]", 0, 140, false, out hud.SoundCaption);
+            var soundRect = hud.SoundButton.GetComponent<RectTransform>();
+            soundRect.anchorMin = soundRect.anchorMax = soundRect.pivot = new Vector2(0, 1);
+            soundRect.anchoredPosition = new Vector2(230, -145); soundRect.sizeDelta = new Vector2(140, 28);
+            hud.SoundCaption.fontSize = 12;
 
             var population = Rect("Population", header.transform, new Vector2(0.52f, 1), new Vector2(0.5f, 1), new Vector2(0, -23), new Vector2(220, 145));
             Label("Population caption", population, "IN THE HABITAT", 12, Muted, new Vector2(0, 0), new Vector2(220, 25));

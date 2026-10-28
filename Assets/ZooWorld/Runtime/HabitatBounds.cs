@@ -23,8 +23,18 @@ namespace ZooWorld
             return inward.sqrMagnitude > 0.001f ? inward.normalized : Vector3.forward;
         }
 
-        public Vector3 RandomPoint(Domain.IRandomSource random) => new Vector3(
-            random.Range(-halfSize.x + 1, halfSize.x - 1), 0, random.Range(-halfSize.y + 1, halfSize.y - 1));
+        public Vector3 RandomPoint(Domain.IRandomSource random, Vector3 trailingOffset = default)
+        {
+            Vector2 minimum = -halfSize + Vector2.one;
+            Vector2 maximum = halfSize - Vector2.one;
+            var offset = new Vector2(trailingOffset.x, trailingOffset.z);
+            // The initial head AND the seeded tail fit inside the habitat.
+            minimum = Vector2.Max(minimum, minimum + offset);
+            maximum = Vector2.Min(maximum, maximum + offset);
+            if (minimum.x > maximum.x || minimum.y > maximum.y)
+                throw new System.InvalidOperationException("The habitat is too small to fit this animal's full body.");
+            return new Vector3(random.Range(minimum.x, maximum.x), 0, random.Range(minimum.y, maximum.y));
+        }
 
         private Vector3 GroundPoint(Vector2 viewport)
         {

@@ -34,11 +34,25 @@ The victim GameObject is disabled immediately and returned to its species pool. 
 
 ## Movement and physics
 
-Snakes request constant planar speed. Frogs use an analytical jump curve: total distance is computed from elapsed jump phase, so crossing a jump boundary on a physics tick does not lose distance. Each frog waits between jumps, and starts at a random point in its resting phase to avoid synchronized motion without shortening its first jump.
+Snakes request constant planar speed with smooth heading changes and a small distance-driven weave. Frogs use an analytical jump curve: total distance is computed from elapsed jump phase, so crossing a jump boundary on a physics tick does not lose distance. Each frog waits between jumps, and starts at a random point in its resting phase to avoid synchronized motion without shortening its first jump. Ordinary steering is held while a frog is airborne.
 
 The dynamic root collider stays on the XZ plane; the visual root rises through the jump arc. This keeps frog/predator collisions meaningful throughout a jump and avoids aerial near misses. Gravity and body rotation are constrained. Physics applies the actual contact response; the motor yields for 0.18 seconds after a collision so its next velocity update does not erase the impulse. Collision displacement can consequently change an animal's net travel, as expected.
 
 Random wandering changes direction between hops. Bounds steering points escaped animals back toward the habitat without teleporting them or blocking them with walls. It also checks the current camera footprint. The orthographic camera fits the habitat as the window aspect changes. Decorative ponds, reeds, grid and rim have no colliders.
+
+### Articulated snake body
+
+The neighboring `snakes` project's distance-resampled head trail inspired the following approach. `DistanceTrail` records the head's actual physical path in a bounded ring buffer, skips stationary solver jitter and samples positions by arc length using binary search. It does not rely on a fixed rendering frame rate. Each subsequent segment follows an older position along that path, so a turn travels from head to tail instead of rotating a rigid model.
+
+`TrailBody` drives 12 **dynamic** segment rigid bodies toward those samples with clamped acceleration. `ConfigurableJoint` distance limits keep adjacent links together; no segment is teleported to its target during ordinary movement. Contacts can deflect the body. The head and all segment bodies stay in the XZ plane, and the 3D meshes and shadows orient to the physical links. Self-collisions are ignored per animal and reapplied after each pooled activation; collisions with other animals remain enabled.
+
+Each body part's `AnimalContactRelay` reports its owning `AnimalAgent`, so tail contact uses the same food-chain rules and death deduplication as head contact. Pool rental injects the new life before activation. Immediately after activation, `ActivateAt` resets native and rendered poses, velocities, interpolation state and head history before the first physics tick. This order matters because inactive Unity rigid bodies do not reliably accept native pose updates. An initial spawn considers the full straight tail, avoiding a long snake appearing partly outside the habitat. `TrailBody` is optional and reusable by another long-bodied species, without species checks in collision or population code.
+
+The frog prefab is 20% larger than the initial demo. The snake has a larger head and a longer, tapered body so its movement reads clearly from the top-down camera.
+
+### Audio feedback
+
+`HabitatAudio` implements the injected `IAnimalFeedback` hop callback. The composition root also requests appearance, predation and UI cues. Four ElevenLabs clips are mastered as short mono WAVs, with generation prompts and measured levels committed in `Audio.json`. Eight reusable audio sources and per-cue cooldowns avoid uncontrolled layering. A separate audio RNG varies pitch without changing the simulation's random sequence. Mute uses the HUD button or M and remains available while paused.
 
 ## Time and randomness
 
