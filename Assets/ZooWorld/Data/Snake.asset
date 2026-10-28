@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c89d2c99a63ed47c2b015c0c4c516dd0, type: 3}
+  m_Name: Snake
+  m_EditorClassIdentifier: ZooWorld.Runtime::ZooWorld.AnimalDefinition
+  DisplayName: Snake
+  Diet: 1
+  Prefab: {fileID: 1311441618159096218, guid: b9eb7b77271e4415c94c0161eb2bcf94, type: 3}
+  Movement: {fileID: 11400000, guid: e8c290b6c0a424cc1bc5413f063b2457, type: 2}
+  Mass: 1.4
+  SpawnWeight: 1
+  InitialPopulation: 4
+  Accent: {r: 1, g: 0.6901961, b: 0.5294118, a: 1}

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c89d2c99a63ed47c2b015c0c4c516dd0, type: 3}
+  m_Name: Frog
+  m_EditorClassIdentifier: ZooWorld.Runtime::ZooWorld.AnimalDefinition
+  DisplayName: Frog
+  Diet: 0
+  Prefab: {fileID: 980917550872192401, guid: 3b72757aca71246c98182c7aacd6e155, type: 3}
+  Movement: {fileID: 11400000, guid: 21897185468b54489a8b19268e89bcea, type: 2}
+  Mass: 1
+  SpawnWeight: 3
+  InitialPopulation: 12
+  Accent: {r: 0.7882353, g: 0.92941177, b: 0.54509807, a: 1}

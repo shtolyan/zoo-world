@@ -1,0 +1,5 @@
+{
+  "name": "ZooWorld.Domain",
+  "rootNamespace": "ZooWorld.Domain",
+  "noEngineReferences": true
+}

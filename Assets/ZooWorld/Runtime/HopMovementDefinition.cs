@@ -1,0 +1,16 @@
+using UnityEngine;
+using ZooWorld.Domain;
+
+namespace ZooWorld
+{
+    [CreateAssetMenu(menuName = "Zoo World/Movement/Hop")]
+    public sealed class HopMovementDefinition : MovementDefinition
+    {
+        [Min(0.1f)] public float Interval = 1.45f;
+        [Min(0.05f)] public float Duration = 0.42f;
+        [Min(0.1f)] public float Distance = 1.65f;
+        [Min(0)] public float Height = 0.65f;
+        public override ILocomotion Create(IRandomSource random) => new HopLocomotion(Interval, Duration, Distance, Height, random.Range(0, Interval));
+        private void OnValidate() => Duration = Mathf.Clamp(Duration, 0.05f, Interval);
+    }
+}

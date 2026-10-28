@@ -1,0 +1,6 @@
+{
+  "name": "ZooWorld.Editor",
+  "rootNamespace": "ZooWorld.Editor",
+  "references": ["ZooWorld.Domain", "ZooWorld.Runtime", "Unity.ugui", "Unity.InputSystem"],
+  "includePlatforms": ["Editor"]
+}

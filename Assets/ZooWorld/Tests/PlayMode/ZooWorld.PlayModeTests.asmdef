@@ -1,0 +1,5 @@
+{
+  "name": "ZooWorld.PlayModeTests",
+  "references": ["ZooWorld.Domain", "ZooWorld.Runtime", "Unity.ugui"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
