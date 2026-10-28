@@ -31,11 +31,14 @@ namespace ZooWorld.Tests
             var prey = simulation.SpawnAt(simulation.Settings.Species[0], Vector3.left * 0.3f, Vector3.right);
             var predator = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 0.3f, Vector3.left);
             yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate(); yield return null;
-            Assert.That(prey.IsAlive, Is.False); Assert.That(prey.gameObject.activeSelf, Is.False);
+            Assert.That(prey.IsAlive, Is.False); Assert.That(prey.gameObject.activeSelf, Is.True);
             Assert.That(predator.IsAlive, Is.True);
+            Assert.That(predator.IsBiting, Is.True);
             Assert.That(simulation.Model.Snapshot.DeadPrey, Is.EqualTo(1));
             Assert.That(simulation.Hud.DeadPrey.text, Is.EqualTo("01"));
             Assert.That(simulation.VisibleTastyLabels, Is.EqualTo(1));
+            yield return new WaitForSeconds(AnimalAgent.ConsumptionDuration + 0.05f);
+            Assert.That(prey.gameObject.activeSelf, Is.False);
         }
 
         [UnityTest] public IEnumerator RealPredatorContactLeavesOneSurvivorAndOneDeath()
@@ -64,6 +67,7 @@ namespace ZooWorld.Tests
             var predator = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 0.3f, Vector3.left);
             var oldLife = prey.Life;
             yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate();
+            yield return new WaitForSeconds(AnimalAgent.ConsumptionDuration + 0.05f);
             var reborn = simulation.SpawnAt(simulation.Settings.Species[0], Vector3.left * 7, Vector3.forward);
             Assert.That(reborn, Is.SameAs(prey)); Assert.That(reborn.Life.Id, Is.Not.EqualTo(oldLife.Id));
             Assert.That(simulation.Model.TryEncounter(predator.Life, oldLife, out _), Is.False);
@@ -133,7 +137,7 @@ namespace ZooWorld.Tests
             Assert.That(snake.IsAlive, Is.True);
         }
 
-        [UnityTest] public IEnumerator ContactWithTheTailCountsOnePreyDeathAndOneEatingSound()
+        [UnityTest] public IEnumerator ContactWithTheTailOnlyBouncesAndDoesNotEatPrey()
         {
             var snake = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 4, Vector3.right);
             var tail = snake.GetComponent<TrailBody>();
@@ -141,9 +145,63 @@ namespace ZooWorld.Tests
             var frog = simulation.SpawnAt(simulation.Settings.Species[0], tailPosition, Vector3.back);
             Assert.That(Vector3.Distance(frog.transform.position, snake.transform.position), Is.GreaterThan(2));
             yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate(); yield return null;
-            Assert.That(frog.IsAlive, Is.False); Assert.That(snake.IsAlive, Is.True);
-            Assert.That(simulation.Model.Snapshot.DeadPrey, Is.EqualTo(1));
+            Assert.That(frog.IsAlive, Is.True); Assert.That(snake.IsAlive, Is.True);
+            Assert.That(simulation.Model.Snapshot.DeadPrey, Is.Zero);
+            Assert.That(simulation.Audio.EatCueCount, Is.Zero);
+            Assert.That(snake.IsBiting, Is.False);
+        }
+
+        [UnityTest] public IEnumerator YoungerHeadTouchingOlderTailCannotMakeTheTailEat()
+        {
+            var older = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 4, Vector3.right);
+            var body = older.GetComponent<TrailBody>();
+            Vector3 tailPosition = body.GetSegment(body.SegmentCount - 1).position; tailPosition.y = 0;
+            var younger = simulation.SpawnAt(simulation.Settings.Species[1], tailPosition + Vector3.forward * 0.3f, Vector3.back);
+            for (int i = 0; i < 5; i++) yield return new WaitForFixedUpdate();
+            Assert.That(older.IsAlive && younger.IsAlive, Is.True);
+            Assert.That(simulation.Model.Snapshot.DeadPredators, Is.Zero);
+            Assert.That(simulation.Audio.EatCueCount, Is.Zero);
+        }
+
+        [UnityTest] public IEnumerator OlderHeadCanBiteYoungerTailAndConsumedBodyReturnsCleanlyToPool()
+        {
+            var older = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.back * 0.45f, Vector3.forward);
+            var younger = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.right * 3, Vector3.right);
+            yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate(); yield return null;
+            Assert.That(older.IsAlive, Is.True); Assert.That(younger.IsAlive, Is.False);
+            Assert.That(older.IsBiting, Is.True);
+            Assert.That(simulation.Model.Snapshot.DeadPredators, Is.EqualTo(1));
             Assert.That(simulation.Audio.EatCueCount, Is.EqualTo(1));
+            foreach (var part in younger.GetComponentsInChildren<Rigidbody>()) Assert.That(part.detectCollisions, Is.False);
+            yield return new WaitForSeconds(0.1f);
+            Assert.That(younger.VisualGrowth, Is.InRange(0.01f, 0.95f));
+            Assert.That(younger.gameObject.activeSelf, Is.True);
+            yield return new WaitForSeconds(AnimalAgent.ConsumptionDuration);
+            Assert.That(younger.gameObject.activeSelf, Is.False);
+            var reborn = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.left * 7, Vector3.forward);
+            Assert.That(reborn, Is.SameAs(younger)); Assert.That(reborn.CanBite, Is.True);
+            foreach (var part in reborn.GetComponentsInChildren<Rigidbody>()) Assert.That(part.detectCollisions, Is.True);
+        }
+
+        [UnityTest] public IEnumerator BiteCooldownDefersFurtherMealsAndRestartClearsConsumption()
+        {
+            var snake = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.zero, Vector3.forward);
+            var first = simulation.SpawnAt(simulation.Settings.Species[0], Vector3.left * 7, Vector3.forward);
+            var second = simulation.SpawnAt(simulation.Settings.Species[0], Vector3.right * 7, Vector3.forward);
+            simulation.Collide(first, snake, true, true);
+            simulation.Collide(snake, second, true, true);
+            Assert.That(first.IsAlive, Is.False); Assert.That(second.IsAlive, Is.True);
+            yield return new WaitForSeconds(AnimalAgent.BiteCooldown + 0.05f);
+            Assert.That(snake.CanBite, Is.True); Assert.That(snake.IsBiting, Is.False);
+            Assert.That(Quaternion.Angle(snake.transform.Find("Visual (hop height is cosmetic; collider stays planar)/Jaw pivot").localRotation,
+                Quaternion.identity), Is.LessThan(0.01f));
+            simulation.Collide(snake, second, true, true);
+            Assert.That(second.IsAlive, Is.False);
+            Assert.That(simulation.Model.Snapshot.DeadPrey, Is.EqualTo(2));
+            simulation.ResetSimulation(false);
+            yield return new WaitForSeconds(AnimalAgent.ConsumptionDuration + 0.05f);
+            Assert.That(simulation.ActiveAnimals.Count, Is.Zero);
+            Assert.That(simulation.Model.Snapshot.DeadPrey, Is.Zero);
         }
 
         [UnityTest] public IEnumerator ReusedSnakeResetsEveryPhysicalSegmentAndItsTrail()

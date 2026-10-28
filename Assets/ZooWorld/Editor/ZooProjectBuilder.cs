@@ -170,13 +170,18 @@ namespace ZooWorld.Editor
             var head = root.GetComponent<Rigidbody>();
             var headCollider = root.GetComponent<SphereCollider>(); headCollider.radius = 0.56f; headCollider.center = Vector3.up * 0.3f;
             head.solverIterations = 12; head.solverVelocityIterations = 6;
-            Shape("Head", PrimitiveType.Sphere, visual, new Vector3(0, 0.34f, 0.13f), new Vector3(0.94f, 0.64f, 1.05f), gold);
+            Shape("Head", PrimitiveType.Sphere, visual, new Vector3(0, 0.42f, 0.13f), new Vector3(0.94f, 0.46f, 1.05f), gold);
+            Shape("Mouth", PrimitiveType.Sphere, visual, new Vector3(0, 0.23f, 0.24f), new Vector3(0.85f, 0.09f, 0.85f), black);
+            var jaw = new GameObject("Jaw pivot").transform; jaw.SetParent(visual, false);
+            jaw.localPosition = new Vector3(0, 0.2f, -0.1f);
+            Shape("Lower jaw", PrimitiveType.Sphere, jaw, new Vector3(0, 0, 0.29f), new Vector3(0.86f, 0.16f, 0.91f), gold);
             for (int side = -1; side <= 1; side += 2)
             {
                 Shape("Eye", PrimitiveType.Sphere, visual, new Vector3(side * 0.27f, 0.6f, 0.29f), Vector3.one * 0.27f, white);
                 Shape("Pupil", PrimitiveType.Sphere, visual, new Vector3(side * 0.27f, 0.72f, 0.33f), new Vector3(0.1f, 0.075f, 0.14f), black);
             }
             var agent = root.GetComponent<AnimalAgent>(); agent.ConfigureVisuals(visual, shadow);
+            agent.ConfigureJaw(jaw);
             var trailBody = root.AddComponent<TrailBody>(); agent.ConfigureBody(trailBody);
             const int count = 12; const float spacing = 0.28f;
             var bodies = new Rigidbody[count]; var models = new Transform[count];

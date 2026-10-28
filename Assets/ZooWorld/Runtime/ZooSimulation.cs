@@ -15,6 +15,8 @@ namespace ZooWorld
         public Transform AnimalContainer;
         public HabitatAudio Audio;
         private PopulationModel model;
+        private FoodChain foodChain;
+        private readonly List<AnimalAgent> consumed = new List<AnimalAgent>();
         private AnimalPool animals;
         private HabitatBounds bounds;
         private IRandomSource random, movementRandom;
@@ -37,7 +39,8 @@ namespace ZooWorld
             movementRandom = new SeededRandom(unchecked(seed + 7919));
             spawnClock = new SpawnClock(new SeededRandom(unchecked(seed + 104729)), Settings.MinimumSpawnInterval, Settings.MaximumSpawnInterval);
             bounds = new HabitatBounds(Settings.HabitatSize, WorldCamera);
-            model = new PopulationModel(new FoodChain());
+            foodChain = new FoodChain();
+            model = new PopulationModel(foodChain);
             animals = new AnimalPool(AnimalContainer);
             tasty = new TastyPresenter(Hud.ToastLayer, WorldCamera, Hud.DeadPrey.font);
             model.Changed += Hud.Present;
@@ -63,6 +66,11 @@ namespace ZooWorld
             int due = spawnClock.Advance(Time.deltaTime);
             for (int i = 0; i < due; i++) SpawnRandom();
             tasty.Tick(Time.deltaTime);
+            for (int i = consumed.Count - 1; i >= 0; i--)
+                if (consumed[i].ConsumptionFinished)
+                {
+                    animals.Release(consumed[i]); consumed.RemoveAt(i);
+                }
             Hud.PresentTime(elapsed, spawnClock.Remaining, paused, fast);
             Hud.PresentAudio(Audio != null && Audio.IsMuted);
         }
@@ -85,12 +93,16 @@ namespace ZooWorld
             return animal;
         }
 
-        public void Collide(AnimalAgent first, AnimalAgent second)
+        public void Collide(AnimalAgent first, AnimalAgent second, bool firstIsHead, bool secondIsHead)
         {
-            if (!model.TryEncounter(first.Life, second.Life, out var predation)) return;
+            if (!foodChain.TryResolve(first.Life, second.Life, out var predation)) return;
             AnimalAgent eater = first.Life == predation.Eater ? first : second;
             AnimalAgent victim = eater == first ? second : first;
-            animals.Release(victim);
+            // Determine the winner first, then require contact with THAT animal's head.
+            // A younger head touching an older tail must never turn into a tail bite.
+            if (!(eater == first ? firstIsHead : secondIsHead) || !eater.CanBite) return;
+            if (!model.TryEncounter(first.Life, second.Life, out _)) return;
+            eater.BeginBite(); victim.BeginConsumption(); consumed.Add(victim);
             tasty.Show(eater);
             if (Audio != null) Audio.Eat(eater.transform.position);
         }
@@ -103,7 +115,7 @@ namespace ZooWorld
 
         public void ResetSimulation(bool seedPopulation = true)
         {
-            tasty.Clear(); animals.ReleaseAll(); model.Reset(); spawnClock.Reset(); elapsed = 0;
+            consumed.Clear(); tasty.Clear(); animals.ReleaseAll(); model.Reset(); spawnClock.Reset(); elapsed = 0;
             if (Audio != null) Audio.Clear();
             paused = false; fast = false; ApplyTimeScale();
             seeding = true;

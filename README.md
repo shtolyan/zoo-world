@@ -19,7 +19,7 @@ A small 3D food-chain simulation made with **Unity 6000.4.6f1**. Frogs hop, arti
 | R / Restart | Clear the population and counters; start again |
 | M / Sound button | Mute or unmute the game sounds |
 
-The two counters at the **top right** count dead prey and dead predators separately. Predator duels are deterministic: the older living predator survives, regardless of callback order. No external art assets or ECS are used.
+The two counters at the **top right** count dead prey and dead predators separately. Only head contact can start a meal; body/tail contacts bounce. A short jaw/lunge animation and shrinking victim make a bite visible, with a 0.48-second cooldown. Predator duels keep the deterministic older-survivor rule: the older snake must make head contact to eat. No external art assets or ECS are used.
 
 ## Design
 
@@ -29,7 +29,7 @@ The main deliverable is an extensible animal architecture:
 - **Runtime**: a reusable `AnimalAgent` adapts a locomotion strategy to a dynamic `Rigidbody`. `AnimalDefinition` assets compose a diet, prefab and movement asset. There are no frog/snake switches in the simulation or collision code.
 - **Composition**: `ZooSimulation` explicitly constructs and injects its dependencies. No service locator, static singleton or runtime scene searches are needed.
 - **Presentation**: event-driven uGUI counters, pooled labels and ordinary editable prefabs. Per-species object pools reuse dead animals with fresh life IDs.
-- **Articulation**: a reusable `TrailBody` follows distance-sampled head history with 12 dynamic rigid bodies, joint limits and soft force drives. Head and tail contacts belong to one animal life.
+- **Articulation**: a reusable `TrailBody` follows distance-sampled head history with 12 dynamic rigid bodies, joint limits and soft force drives. Head and tail contacts belong to one animal life, with predation restricted to the eater’s head.
 - **Sound**: four short ElevenLabs cues for arrivals, hops, eating and buttons, with a bounded voice pool, gentle stereo positioning and cooldowns.
 
 See [Architecture](Documentation/Architecture.md) for extension instructions and tradeoffs, and [Requirements](Documentation/Requirements.md) for the task checklist.
@@ -59,8 +59,10 @@ unity test . --mode PlayMode --report-format nunit,junit --output TestResults/pl
 unity build . --target StandaloneOSX --output-path Builds/macOS/ZooWorld.app
 ```
 
+For routine changes, run focused tests; rebuild a player when requested.
+
 Close the project's Editor before a batch test/build; only one process can own its asset database. The demo content is already committed. **Tools → Zoo World → Rebuild demo content** recreates its assets and scene through the Unity Editor API; it overwrites demo content, so commit custom changes first.
 
 Generated `Library`, logs, build output and test reports are ignored by Git. Unity `.meta` files, package locks, data, prefabs and the scene are committed. Only Unity packages are required; no separate DI framework or commercial assets need installing.
 
-The local validation pass completed **36 EditMode + 12 PlayMode tests** and a **universal macOS build**. See [Validation](Documentation/Validation.md) for the verified source revision and artifact locations.
+The current bite behavior passed **36 EditMode + 15 PlayMode tests**. The existing **universal macOS build** is from the previous movement/audio revision; this update is available in the Editor. See [Validation](Documentation/Validation.md) for the verified source revision and artifact locations.

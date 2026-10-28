@@ -1,5 +1,17 @@
 # Validation
 
+## Head-contact bites — 28 October 2026
+
+Unity **6000.4.6f1**: **36 EditMode + 15 PlayMode tests passed**, no failures or skipped cases. Reports: `TestResults/bite-editmode.xml` and `TestResults/bite-playmode.xml` (plus JUnit equivalents).
+
+The physical-contact suite verifies that prey survives tail contact, a younger head touching an older tail causes no death, an older head can eat a younger body, and head/head encounters retain the older-survivor rule. It also checks exactly one death/eating cue, the bite cooldown, delayed pool return, collision restoration on reuse and reset during consumption. Existing movement, UI, pause, spawn, sound and pooling checks continue to pass.
+
+[Bite.gif](Bite.gif) is a 40-frame capture of the running simulation from a temporary close-up camera. For this presentation the frog's position was held still while the snake approached; actual PhysX contact triggered the bite. The capture showed both the jaw/lunge animation and the prey's shrinking disappearance. The temporary camera and staging are excluded from the saved scene.
+
+No desktop player was rebuilt for this change, as requested. The local macOS player documented below remains the previous movement/audio revision; use the Editor to run the current bite behavior.
+
+## Previous movement/audio validation
+
 Verified locally on **28 October 2026**, using **Unity 6000.4.6f1** on an Apple M1 Mac.
 
 Code revision used for the final automated test/build pass: `d6a1c5769593c653b9b39bf41518866a19654f6a`.

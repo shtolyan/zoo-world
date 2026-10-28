@@ -101,5 +101,10 @@ namespace ZooWorld
                 preceding = segments[i].transform.position;
             }
         }
+
+        public void ShowConsumption(float scale)
+        {
+            for (int i = 0; i < models.Length; i++) models[i].localScale = modelScales[i] * scale;
+        }
     }
 }

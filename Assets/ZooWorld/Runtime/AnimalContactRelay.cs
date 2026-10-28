@@ -6,9 +6,13 @@ namespace ZooWorld
     public sealed class AnimalContactRelay : MonoBehaviour
     {
         public AnimalAgent Owner;
-        private void OnCollisionEnter(Collision collision)
+        private void OnCollisionEnter(Collision collision) => Contact(collision, true);
+        private void OnCollisionStay(Collision collision) => Contact(collision, false);
+
+        private void Contact(Collision collision, bool entering)
         {
-            if (Owner != null) Owner.ReportContact(Resolve(collision.collider));
+            if (Owner != null) Owner.ReportContact(Resolve(collision.collider), false,
+                collision.collider.TryGetComponent<AnimalAgent>(out _), entering);
         }
 
         public static AnimalAgent Resolve(Collider collider)

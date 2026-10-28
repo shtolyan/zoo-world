@@ -15,7 +15,7 @@ ZooSimulation (composition root)
   ├── AnimalAgent.OnCollisionEnter → PopulationModel.TryEncounter
   │                                  ├── FoodChain → eater + victim
   │                                  └── commit one death → Changed → ZooHud
-  └── release victim immediately + TastyPresenter.Show(eater)
+  └── head-contact gate → bite + shrink victim → pooled release + Tasty!
 ```
 
 ## Why composition rather than one class per species
@@ -30,7 +30,9 @@ This is regular object-oriented GameObject code. It does not use ECS, Jobs, Burs
 
 The food-chain rule is symmetric in callback order. Two prey survive. A predator eats prey. Between two predators, the lower monotonic life ID wins. `PopulationModel` validates that both lives belong to the current population, ends the victim and removes it before raising `Changed`. Reversed callbacks and later contacts with that dead life are therefore harmless.
 
-The victim GameObject is disabled immediately and returned to its species pool. A new rental receives a fresh `AnimalLife` and locomotion object. IDs are not reset on restart, preventing a stale callback from matching a subsequent life. Labels also remember the target's life ID, so a reused body cannot inherit an old label. There is no active-population cap; the pool retains at most 64 inactive instances per species and destroys excess returns.
+The runtime first checks that the chosen eater contacted the other animal with its head and its 0.48-second bite cooldown has elapsed. Body and tail contacts only bounce; the younger head touching an older tail does not let the older snake eat through its tail. Both enter and stay callbacks carry each contact part, allowing a continuing head contact to become a meal after cooldown. The survivor rule remains unchanged.
+
+Death accounting happens once at contact. The eater pauses its motor and plays a 0.32-second jaw/lunge animation. All victim rigid bodies immediately stop colliding; its meshes shrink over 0.24 seconds before the GameObject returns to its species pool. This cosmetic delay cannot cause another death. Pause freezes both animations and reset clears pending returns. A new rental receives a fresh `AnimalLife` and locomotion object. IDs are not reset on restart, preventing a stale callback from matching a subsequent life. Labels also remember the target's life ID, so a reused body cannot inherit an old label. There is no active-population cap; the pool retains at most 64 inactive instances per species and destroys excess returns.
 
 ## Movement and physics
 
@@ -46,7 +48,7 @@ The neighboring `snakes` project's distance-resampled head trail inspired the fo
 
 `TrailBody` drives 12 **dynamic** segment rigid bodies toward those samples with clamped acceleration. `ConfigurableJoint` distance limits keep adjacent links together; no segment is teleported to its target during ordinary movement. Contacts can deflect the body. The head and all segment bodies stay in the XZ plane, and the 3D meshes and shadows orient to the physical links. Self-collisions are ignored per animal and reapplied after each pooled activation; collisions with other animals remain enabled.
 
-Each body part's `AnimalContactRelay` reports its owning `AnimalAgent`, so tail contact uses the same food-chain rules and death deduplication as head contact. Pool rental injects the new life before activation. Immediately after activation, `ActivateAt` resets native and rendered poses, velocities, interpolation state and head history before the first physics tick. This order matters because inactive Unity rigid bodies do not reliably accept native pose updates. An initial spawn considers the full straight tail, avoiding a long snake appearing partly outside the habitat. `TrailBody` is optional and reusable by another long-bodied species, without species checks in collision or population code.
+Each body part's `AnimalContactRelay` reports its owning `AnimalAgent` and identifies itself as a non-head contact. Only the selected eater's head can start predation; every segment remains a physical obstacle. An eligible head can bite another animal's head or body. Pool rental injects the new life before activation. Immediately after activation, `ActivateAt` resets native and rendered poses, velocities, interpolation state and head history before the first physics tick. This order matters because inactive Unity rigid bodies do not reliably accept native pose updates. An initial spawn considers the full straight tail, avoiding a long snake appearing partly outside the habitat. `TrailBody` is optional and reusable by another long-bodied species, without species checks in collision or population code.
 
 The frog prefab is 20% larger than the initial demo. The snake has a larger head and a longer, tapered body so its movement reads clearly from the top-down camera.
 
