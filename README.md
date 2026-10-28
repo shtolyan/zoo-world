@@ -2,6 +2,8 @@
 
 A small 3D food-chain simulation made with **Unity 6000.4.6f1**. Frogs hop, snakes glide, and physics brings them together. All game UI, including the floating **Tasty!** labels, uses **uGUI**.
 
+![Zoo World running in Unity](Documentation/Screenshot.png)
+
 ## Run
 
 1. Open this folder with Unity **6000.4.6f1**.

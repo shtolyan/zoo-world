@@ -76,6 +76,9 @@ namespace ZooWorld.Editor
             light.type = LightType.Directional; light.intensity = 1.15f;
             light.color = Hex("FFF0CC"); light.shadows = LightShadows.Soft;
             light.transform.rotation = Quaternion.Euler(54, -32, 0);
+            var backdrop = new GameObject("Backdrop Camera").AddComponent<Camera>();
+            backdrop.depth = -1; backdrop.cullingMask = 0;
+            backdrop.clearFlags = CameraClearFlags.SolidColor; backdrop.backgroundColor = Ink;
             var camera = new GameObject("Habitat Camera", typeof(Camera), typeof(AudioListener), typeof(HabitatCamera)).GetComponent<Camera>();
             camera.tag = "MainCamera"; camera.orthographic = true; camera.orthographicSize = 8;
             camera.transform.SetPositionAndRotation(new Vector3(0, 30, 0), Quaternion.Euler(90, 0, 0));
@@ -229,11 +232,6 @@ namespace ZooWorld.Editor
                     $"+ {settings.Species[i].DisplayName} [{i + 1}]", right, 125, false, out _);
                 right -= 135;
             }
-            var hint = Label("Hint", canvas.transform, "OBSERVE   /   Space to pause · 1 / 2 to add animals", 11, Muted,
-                new Vector2(0, 0), new Vector2(600, 24));
-            hint.rectTransform.anchorMin = hint.rectTransform.anchorMax = new Vector2(0.5f, 0.116f);
-            hint.rectTransform.pivot = new Vector2(0.5f, 0); hint.rectTransform.anchoredPosition = new Vector2(0, 6);
-            hint.alignment = TextAnchor.MiddleCenter;
             hud.ToastLayer = new GameObject("Tasty labels (uGUI)", typeof(RectTransform)).GetComponent<RectTransform>();
             hud.ToastLayer.SetParent(canvas.transform, false); Stretch(hud.ToastLayer, Vector2.zero, Vector2.one);
             return hud;
