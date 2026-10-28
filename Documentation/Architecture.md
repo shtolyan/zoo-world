@@ -34,7 +34,7 @@ The victim GameObject is disabled immediately and returned to its species pool. 
 
 ## Movement and physics
 
-Snakes request constant planar speed. Frogs use an analytical jump curve: total distance is computed from elapsed jump phase, so crossing a jump boundary on a physics tick does not lose distance. Each frog waits between jumps, and has a random phase to avoid synchronized motion.
+Snakes request constant planar speed. Frogs use an analytical jump curve: total distance is computed from elapsed jump phase, so crossing a jump boundary on a physics tick does not lose distance. Each frog waits between jumps, and starts at a random point in its resting phase to avoid synchronized motion without shortening its first jump.
 
 The dynamic root collider stays on the XZ plane; the visual root rises through the jump arc. This keeps frog/predator collisions meaningful throughout a jump and avoids aerial near misses. Gravity and body rotation are constrained. Physics applies the actual contact response; the motor yields for 0.18 seconds after a collision so its next velocity update does not erase the impulse. Collision displacement can consequently change an animal's net travel, as expected.
 

@@ -91,6 +91,25 @@ namespace ZooWorld.Tests
 
     public sealed class LocomotionTests
     {
+        private sealed class MinimumRandom : IRandomSource
+        {
+            public float Range(float minimum, float maximum) => minimum;
+            public int Range(int minimum, int maximum) => minimum;
+        }
+
+        [Test] public void NewFrogStartsInRestAndItsFirstJumpHasFullDistance()
+        {
+            var definition = ScriptableObject.CreateInstance<HopMovementDefinition>();
+            try
+            {
+                var movement = definition.Create(new MinimumRandom());
+                var first = movement.Step(0.01f);
+                Assert.That(first.Distance, Is.Zero); Assert.That(first.Height, Is.Zero);
+                Assert.That(movement.Step(definition.Interval).Distance, Is.EqualTo(definition.Distance).Within(0.001f));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(definition); }
+        }
+
         [TestCase(0.02f)] [TestCase(0.033f)] [TestCase(0.17f)]
         public void HopTravelsFixedDistanceAcrossIrregularTicks(float tick)
         {

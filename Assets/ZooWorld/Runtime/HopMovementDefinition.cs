@@ -10,7 +10,8 @@ namespace ZooWorld
         [Min(0.05f)] public float Duration = 0.42f;
         [Min(0.1f)] public float Distance = 1.65f;
         [Min(0)] public float Height = 0.65f;
-        public override ILocomotion Create(IRandomSource random) => new HopLocomotion(Interval, Duration, Distance, Height, random.Range(0, Interval));
+        // Randomize the initial REST only; spawning halfway through a jump would shorten the first jump.
+        public override ILocomotion Create(IRandomSource random) => new HopLocomotion(Interval, Duration, Distance, Height, random.Range(Duration, Interval));
         private void OnValidate() => Duration = Mathf.Clamp(Duration, 0.05f, Interval);
     }
 }

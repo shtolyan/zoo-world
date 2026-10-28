@@ -72,9 +72,10 @@ namespace ZooWorld
         public AnimalAgent SpawnAt(AnimalDefinition definition, Vector3 position, Vector3 direction)
         {
             if (definition == null || !definition.IsValid) throw new ArgumentException("A valid species is required.", nameof(definition));
+            var movement = definition.Movement.Create(movementRandom);
             var life = model.Register(definition.Diet);
             var animal = animals.Rent(definition, position);
-            animal.Initialize(life, definition, definition.Movement.Create(movementRandom), movementRandom, this, bounds, direction);
+            animal.Initialize(life, definition, movement, movementRandom, this, bounds, direction);
             animal.gameObject.SetActive(true);
             return animal;
         }
