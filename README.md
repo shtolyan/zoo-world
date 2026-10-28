@@ -26,8 +26,8 @@ The two counters at the **top right** count dead prey and dead predators separat
 The main deliverable is an extensible animal architecture:
 
 - **Domain**: plain C# life states, food-chain rules, population accounting, locomotion calculations and spawn scheduling. This assembly has no Unity references.
-- **Runtime**: a reusable `AnimalAgent` adapts a locomotion strategy to a dynamic `Rigidbody`. `AnimalDefinition` assets compose a diet, prefab and movement asset. There are no frog/snake switches in the simulation or collision code.
-- **Composition**: `ZooSimulation` explicitly constructs and injects its dependencies. No service locator, static singleton or runtime scene searches are needed.
+- **Runtime**: `AnimalAgent` delegates locomotion to `AnimalMotor`, animation to `AnimalView`, and bite/death timing to the engine-independent `AnimalActivity`. `AnimalDefinition` assets compose a diet, prefab and movement asset. There are no frog/snake switches in the simulation or collision code.
+- **Composition**: `ZooSimulation` wires controls and presentation; `AnimalSpawner` and `AnimalPopulation` own selection, creation, encounters and pool returns. No service locator, static singleton or runtime scene searches are needed.
 - **Presentation**: event-driven uGUI counters, pooled labels and ordinary editable prefabs. Per-species object pools reuse dead animals with fresh life IDs.
 - **Articulation**: a reusable `TrailBody` follows distance-sampled head history with 12 dynamic rigid bodies, joint limits and soft force drives. Head and tail contacts belong to one animal life, with predation restricted to the eater’s head.
 - **Sound**: four short ElevenLabs cues for arrivals, hops, eating and buttons, with a bounded voice pool, gentle stereo positioning and cooldowns.
@@ -51,7 +51,7 @@ The four mastered mono WAVs are committed in `Assets/ZooWorld/Audio`, and their 
 
 ## Validate and build
 
-Use **Window → General → Test Runner** for EditMode and PlayMode tests. With the Unity CLI installed:
+Use **Window → General → Test Runner** for EditMode and PlayMode tests. With the Unity CLI installed, `bash Scripts/validate.sh` runs both suites and the population physics probe without a player build. Individual commands:
 
 ```sh
 unity test . --mode EditMode --report-format nunit,junit --output TestResults/editmode.xml
@@ -65,4 +65,4 @@ Close the project's Editor before a batch test/build; only one process can own i
 
 Generated `Library`, logs, build output and test reports are ignored by Git. Unity `.meta` files, package locks, data, prefabs and the scene are committed. Only Unity packages are required; no separate DI framework or commercial assets need installing.
 
-The current bite behavior passed **36 EditMode + 15 PlayMode tests**. The existing **universal macOS build** is from the previous movement/audio revision; this update is available in the Editor. See [Validation](Documentation/Validation.md) for the verified source revision and artifact locations.
+The latest code review pass completed **62 EditMode + 24 PlayMode tests**. The existing **universal macOS build** is from the earlier movement/audio revision; the bite and review changes are available in the Editor. See [Code review](Documentation/Review.md) for findings and improvements, and [Validation](Documentation/Validation.md) for verified source revisions and artifact locations.

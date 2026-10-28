@@ -28,8 +28,7 @@ namespace ZooWorld.Editor
 
         public static void Rebuild()
         {
-            AssetDatabase.DeleteAsset("Assets/Scenes");
-            AssetDatabase.DeleteAsset("Assets/InputSystem_Actions.inputactions");
+            // Rebuilding this demo must never delete scenes or input assets owned by other content.
             foreach (string folder in new[] { "Art", "Audio", "Data", "Prefabs", "Scenes" }) Directory.CreateDirectory($"{Root}/{folder}");
             AssetDatabase.Refresh();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

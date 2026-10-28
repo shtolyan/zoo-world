@@ -25,8 +25,24 @@ namespace ZooWorld
         private float travel;
         private bool selfContactsIgnored;
         private const float HeadHeight = 0.3f;
-        public int SegmentCount => segments.Length;
-        public float RestLength => segments.Length * Spacing;
+        public int SegmentCount => segments != null ? segments.Length : 0;
+        public float RestLength => SegmentCount * Spacing;
+        public bool IsConfigured
+        {
+            get
+            {
+                if (segments == null || models == null || modelScales == null || segments.Length == 0
+                    || segments.Length != models.Length || models.Length != modelScales.Length
+                    || !PositiveFinite(Spacing) || !PositiveFinite(Wavelength) || !PositiveFinite(FollowGain)
+                    || float.IsNaN(WeaveAngle) || WeaveAngle < 0 || WeaveAngle > 45) return false;
+                for (int i = 0; i < segments.Length; i++)
+                    if (segments[i] == null || models[i] == null || !segments[i].transform.IsChildOf(transform)
+                        || segments[i].GetComponent<Collider>() == null) return false;
+                return true;
+            }
+        }
+
+        private static bool PositiveFinite(float value) => value > 0 && !float.IsInfinity(value);
         public Rigidbody GetSegment(int index) => segments[index];
         public Vector3 PointOnTrail(float behind) => trail.Sample(behind);
 

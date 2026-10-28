@@ -1,71 +1,101 @@
 # Architecture and extension guide
 
-## Data flow
+Zoo World separates species data, engine-independent rules, Unity physics and presentation. It uses explicit dependency injection and ordinary GameObjects; there is no service locator, singleton, ECS, Jobs or Burst.
+
+## Responsibilities
+
+| Type | Owns | Does not own |
+| --- | --- | --- |
+| `ZooSimulation` | Scene wiring, input, pause/speed, arrival clock, HUD/audio subscription | Animal creation internals, food-chain decisions, animation |
+| `AnimalSpawner` | Catalog snapshot, weighted selection, initial placement, seeding | UI, death accounting, pool internals |
+| `AnimalPopulation` | Spawn preparation, encounters, consumed-animal returns | Keyboard, camera framing, HUD, sound playback |
+| `AnimalPool` | Inactive creation, rentals, bounded per-species reuse, disposal | Life IDs, diet, death counters |
+| `AnimalAgent` | Serialized bindings, Unity callbacks, dependency injection | Steering calculations, animation curves, action timers |
+| `AnimalMotor` | Planar wandering, boundary steering, Rigidbody velocity, collision recovery | Visual transforms, food-chain rules |
+| `AnimalView` | Appearance, lift, shadow, jaw/lunge, disappearance | Physics velocity, counters, life state |
+| `AnimalActivity` | Bite cooldown and consumption timing in simulation seconds | Unity and rendering |
+| `TrailBody` | Jointed body following a distance-sampled physical trail | Species selection and predation rules |
+| `PopulationModel` / `FoodChain` | Life identity, ownership, encounters and accounting | Unity objects and presentation |
+
+The motor and view are ordinary per-instance C# collaborators. Their serialized references stay on `AnimalAgent`, so existing scene and prefab bindings remain valid without a migration or runtime component searches. They are constructed once per pooled instance and reset for each new life.
+
+## Composition and events
 
 ```text
-SimulationSettings ── species catalog ── AnimalDefinition
-                                           ├── prefab / presentation
-                                           ├── diet / mass / spawn weight
-                                           └── MovementDefinition → new ILocomotion per life
+SimulationSettings -> AnimalDefinition -> prefab + diet + MovementDefinition
 
-ZooSimulation (composition root)
-  ├── SpawnClock + independent seeded arrival RNG → AnimalPool.Rent
-  ├── PopulationModel.Register → fresh AnimalLife → AnimalAgent.Initialize
-  ├── HabitatBounds → random spawn points + inward steering
-  ├── AnimalAgent.OnCollisionEnter → PopulationModel.TryEncounter
-  │                                  ├── FoodChain → eater + victim
-  │                                  └── commit one death → Changed → ZooHud
-  └── head-contact gate → bite + shrink victim → pooled release + Tasty!
+ZooSimulation
+  -> SpawnClock -> AnimalSpawner -> AnimalPopulation.Spawn
+  -> AnimalPopulation.Model.Changed -> ZooHud.Present
+  -> AnimalPopulation.Ate -> TastyPresenter + HabitatAudio
+
+AnimalPopulation.Spawn
+  -> MovementDefinition.Create
+  -> PopulationModel.Register(prepare)
+       -> AnimalPool.Rent (inactive)
+       -> AnimalAgent.Initialize
+            -> AnimalMotor.Reset
+            -> AnimalActivity.Reset
+            -> AnimalView.Reset
+       -> AnimalAgent.ActivateAt
+       -> publish the initialized life and population snapshot
+
+AnimalAgent contact -> AnimalPopulation.Collide
+  -> PopulationModel.TryResolve -> winner head contact + bite readiness
+  -> PopulationModel.TryEncounter -> one committed death
+  -> eater bite + victim consumption -> Ate event
+  -> LateUpdate -> release finished victim to pool
 ```
 
-## Why composition rather than one class per species
+`AnimalPopulation` can run without a HUD or audio service; tests use this boundary for custom species and scale probes. The scene adapter exposes a few convenience methods for controls and integration tests, while physical contacts go directly to the population service.
 
-Movement and diet are independent dimensions. A hopping predator or a gliding prey is another asset configuration, not a fork of the frog/snake code. `AnimalAgent` only handles the Unity body and view. New locomotion is supplied through `ILocomotion` and a `MovementDefinition` factory; every life receives fresh mutable movement state. A catalog of 1,000 species adds data and prefabs instead of 1,000 branches in a central script.
+## Species extension
 
-The pure C# domain assembly is deliberately small and does not depend on the engine. Dependency injection is explicit at `ZooSimulation.Start` and `AnimalAgent.Initialize`; a container would add package/version overhead without improving this dependency graph. If project size later warrants a container, the same constructor and method boundaries can be bound there.
+1. Make a prefab with `AnimalAgent`, a dynamic root `Rigidbody` and `SphereCollider`. Assign separate child transforms for the visual and ground shadow; optionally assign a jaw and `TrailBody`. Visual-only geometry has no colliders.
+2. Reuse a `MovementDefinition` or derive one and return a fresh `ILocomotion` from `Create`. Override `IsValid` to reject invalid serialized settings before spawning.
+3. Create an `AnimalDefinition` with prefab, movement, diet, mass, turn speed, spawn weight and initial population.
+4. Add the asset to `SimulationSettings.Species` and restart Play mode. The spawner snapshots catalog membership and weights at startup.
 
-This is regular object-oriented GameObject code. It does not use ECS, Jobs, Burst, hidden global state or per-frame scene searches. A thousand **species definitions** does not imply a claim that thousands of dynamic physics bodies have been benchmarked.
+The catalog is validated once on construction, and an explicit spawn validates the selected definition again. A cumulative weight distribution uses double precision and binary search: selecting a species does not scan 1,000 definitions or overflow a float sum. A test addresses every bucket in a 1,000-entry catalog. Another test configures a new gliding predator using the frog prefab and existing movement assets, and verifies a real physical meal without changes to the simulation.
 
-## Encounters and lifecycle
+Movement and diet are independent dimensions. New species need no frog/snake conditionals. The two manual buttons and keyboard shortcuts are presentation for this demo, not the species registry.
 
-The food-chain rule is symmetric in callback order. Two prey survive. A predator eats prey. Between two predators, the lower monotonic life ID wins. `PopulationModel` validates that both lives belong to the current population, ends the victim and removes it before raising `Changed`. Reversed callbacks and later contacts with that dead life are therefore harmless.
+### Movement scope
 
-The runtime first checks that the chosen eater contacted the other animal with its head and its 0.48-second bite cooldown has elapsed. Body and tail contacts only bounce; the younger head touching an older tail does not let the older snake eat through its tail. Both enter and stay callbacks carry each contact part, allowing a continuing head contact to become a meal after cooldown. The survivor rule remains unchanged.
+The supplied motor operates on XZ and uses a root sphere. Hop elevation is visual, keeping collisions meaningful throughout a jump. `ILocomotion` describes distance and visual height per step; it is not a complete flight or swimming interface. True volumetric motion would require another motor contract with physical vertical displacement and appropriate habitat constraints. The current separation isolates that future work from population, food-chain and view code; it does not claim flight is already implemented.
 
-Death accounting happens once at contact. The eater pauses its motor and plays a 0.32-second jaw/lunge animation. All victim rigid bodies immediately stop colliding; its meshes shrink over 0.24 seconds before the GameObject returns to its species pool. This cosmetic delay cannot cause another death. Pause freezes both animations and reset clears pending returns. A new rental receives a fresh `AnimalLife` and locomotion object. IDs are not reset on restart, preventing a stale callback from matching a subsequent life. Labels also remember the target's life ID, so a reused body cannot inherit an old label. There is no active-population cap; the pool retains at most 64 inactive instances per species and destroys excess returns.
+## Creation and pooling
 
-## Movement and physics
+Prefabs are instantiated beneath an inactive parent. `OnEnable` therefore cannot run before the life, definition, motor and view have been initialized. On activation, native and rendered Rigidbody poses, velocities and interpolation caches are reset before the next physics tick. Long bodies reset every segment and their trail, and reapply ignored self-collisions.
 
-Snakes request constant planar speed with smooth heading changes and a small distance-driven weave. Frogs use an analytical jump curve: total distance is computed from elapsed jump phase, so crossing a jump boundary on a physics tick does not lose distance. Each frog waits between jumps, and starts at a random point in its resting phase to avoid synchronized motion without shortening its first jump. Ordinary steering is held while a frog is airborne.
+A population life is published only after successful preparation. If preparation throws, the provisional life ends, the rented instance is discarded, and no counter or population notification is emitted. Pool ownership records the rental definition independently of `AnimalAgent.Definition`, so even partially initialized instances can be removed safely. Factories returning no movement strategy are rejected before rental.
 
-The dynamic root collider stays on the XZ plane; the visual root rises through the jump arc. This keeps frog/predator collisions meaningful throughout a jump and avoids aerial near misses. Gravity and body rotation are constrained. Physics applies the actual contact response; the motor yields for 0.18 seconds after a collision so its next velocity update does not erase the impulse. Collision displacement can consequently change an animal's net travel, as expected.
+IDs remain monotonic across reset and failed preparation. Labels remember the target's life ID, so a reused object does not inherit an old label. The inactive pool retains at most 64 objects per species; excess returns are destroyed. Population disposal invalidates lives and destroys both active and retained objects. HUD delegates are detached even if Unity destroyed the HUD before the scene adapter.
 
-Random wandering changes direction between hops. Bounds steering points escaped animals back toward the habitat without teleporting them or blocking them with walls. It also checks the current camera footprint. The orthographic camera fits the habitat as the window aspect changes. Decorative ponds, reeds, grid and rim have no colliders.
+## Encounters and actions
 
-### Articulated snake body
+Prey/prey contacts only separate through physics. A predator eats prey. Between two predators the older life wins, independent of callback order. The runtime additionally requires the chosen winner's head to be in contact and its bite cooldown to have elapsed. A younger head touching an older tail cannot make that tail eat. Both enter and stay callbacks carry contact-part identity; staying in contact can retry after cooldown.
 
-The neighboring `snakes` project's distance-resampled head trail inspired the following approach. `DistanceTrail` records the head's actual physical path in a bounded ring buffer, skips stationary solver jitter and samples positions by arc length using binary search. It does not rely on a fixed rendering frame rate. Each subsequent segment follows an older position along that path, so a turn travels from head to tail instead of rotating a rigid model.
+The victim's life and death counters change once, before notifications. All victim bodies immediately stop colliding. Its meshes shrink for 0.24 seconds before pool return. The eater's 0.32-second bite animation ends before its 0.48-second cooldown. `AnimalActivity` owns these clocks; the view reads progress but cannot authorize a meal. Pause supplies zero simulation time and freezes both actions. Reset clears pending returns and action state.
 
-`TrailBody` drives 12 **dynamic** segment rigid bodies toward those samples with clamped acceleration. `ConfigurableJoint` distance limits keep adjacent links together; no segment is teleported to its target during ordinary movement. Contacts can deflect the body. The head and all segment bodies stay in the XZ plane, and the 3D meshes and shadows orient to the physical links. Self-collisions are ignored per animal and reapplied after each pooled activation; collisions with other animals remain enabled.
+`AnimalMotor` yields to a physical impulse for 0.18 seconds after contact. Otherwise it applies the locomotion strategy's planar speed. Hop travel is analytical, preserving total distance across irregular ticks. Bounds steering uses the actual camera viewport and redirects toward the visible ground area without teleporting or adding walls.
 
-Each body part's `AnimalContactRelay` reports its owning `AnimalAgent` and identifies itself as a non-head contact. Only the selected eater's head can start predation; every segment remains a physical obstacle. An eligible head can bite another animal's head or body. Pool rental injects the new life before activation. Immediately after activation, `ActivateAt` resets native and rendered poses, velocities, interpolation state and head history before the first physics tick. This order matters because inactive Unity rigid bodies do not reliably accept native pose updates. An initial spawn considers the full straight tail, avoiding a long snake appearing partly outside the habitat. `TrailBody` is optional and reusable by another long-bodied species, without species checks in collision or population code.
+## Articulation and presentation
 
-The frog prefab is 20% larger than the initial demo. The snake has a larger head and a longer, tapered body so its movement reads clearly from the top-down camera.
+Each snake has a root body plus 12 dynamic segments joined by `ConfigurableJoint`. `DistanceTrail` stores a bounded ring buffer of positions sampled by distance, skips stationary solver jitter and uses binary search for trail samples. Soft force drives follow those samples; contacts can deflect the links. A species' seeded head and full tail must fit inside its habitat.
 
-### Audio feedback
+The view preserves authored visual/shadow scales and jaw rest rotation when resetting a pooled life. It applies appearance, lift, bite and consumption separately from the motor. uGUI population counters update on events. Time labels are reformatted only when their displayed value changes. Tasty labels cache their Canvas and use its UI camera, rather than searching the hierarchy each frame.
 
-`HabitatAudio` implements the injected `IAnimalFeedback` hop callback. The composition root also requests appearance, predation and UI cues. Four ElevenLabs clips are mastered as short mono WAVs, with generation prompts and measured levels committed in `Audio.json`. Eight reusable audio sources and per-cue cooldowns avoid uncontrolled layering. A separate audio RNG varies pitch without changing the simulation's random sequence. Mute uses the HUD button or M and remains available while paused.
+`HabitatAudio` receives injected hop feedback and scene-level arrival/meal/button requests. Eight reusable voices and per-cue cooldowns bound overlapping playback. Its pitch RNG is independent of simulation RNG; mute works during pause. Committed WAV files require no external service to play.
 
-## Time and randomness
+## Time and reproducibility
 
-Arrival intervals are uniform in [1, 2] simulation seconds, independent of movement/species RNG calls. Pause freezes physics, scheduling and labels; uGUI remains responsive. 2× speed intentionally doubles simulation time. The clock carries over fractional overshoot and catches up after a long frame. Restart clears all lives, labels and counters, returns to 1×, resets the clock and seeds the initial population.
+Arrivals are uniform in [1, 2] simulation seconds using a dedicated RNG. Species selection and animal movement use separate seeded streams. Pause stops the clock, physics and animation; 2x speed doubles simulation time. Restart clears lives, effects and counters, resets speed and the arrival clock, and recreates the initial population. Restart does not rewind the random streams; a fresh session with a fixed seed reproduces their initial sequence.
 
-`Simulation.asset` can use a fixed random seed for reproduction. Normal demo runs randomize the seed. The configured 3:1 frog/snake spawn weights help maintain a readable mixed population; the initial 12:4 population makes the scene immediately observable. These are editable demonstration choices, not special food-chain rules.
+All domain time consumers reject negative, NaN and infinite steps before changing their state. Settings validate finite dimensions, valid movement parameters, diet and non-negative initial populations, and positive finite mass, weight and turn speed.
 
-## Test boundaries
+## Verification and limits
 
-EditMode tests exercise food-chain permutations, duplicate callbacks, dead/foreign/stale lives, event ordering, hop timing, frame independence, spawn timing and inward steering. PlayMode tests load the committed scene and exercise actual physics callbacks, object reuse, uGUI counters/labels, buttons, pause, automatic spawning and an escaped animal returning. Render inspection and a desktop player build supplement these tests.
+Run `bash Scripts/validate.sh` for EditMode and PlayMode checks without building a player. It writes NUnit/JUnit reports and logs, including an Editor physics probe for 25, 100 and 200 animals. The probe measures `Physics.Simulate` separately from script updates and rendering; it is not a player FPS claim. See [Validation](Validation.md) for measured results.
 
-## Deliberate limits
-
-The demo uses simple primitive meshes and circular planar contact volumes. It is not a pathfinding or predator-AI simulation: all animals wander randomly as requested. It has no persistence or networking. The two manual spawn buttons and legend belong to the two-species demo; extend that presentation when adding more demo shortcuts. The automatic simulation reads every catalog entry without needing those buttons.
+No active-population cap is imposed. A long session or a dense crowd still needs profiling on its intended device. A large catalog of species is distinct from a large simultaneous population. This demo has no pathfinding, persistence or networking, and animal behavior remains random wandering as requested.

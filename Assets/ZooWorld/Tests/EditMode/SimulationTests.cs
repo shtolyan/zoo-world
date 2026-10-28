@@ -191,6 +191,23 @@ namespace ZooWorld.Tests
 
     public sealed class HabitatBoundsTests
     {
+        [TestCase(0f)] [TestCase(45f)]
+        public void OffscreenAnimalReturnsToTranslatedCamera(float rotation)
+        {
+            var go = new GameObject("Shifted camera", typeof(Camera));
+            try
+            {
+                var camera = go.GetComponent<Camera>();
+                camera.orthographic = true; camera.orthographicSize = 2; camera.aspect = 1;
+                go.transform.SetPositionAndRotation(new Vector3(6, 20, 0), Quaternion.Euler(90, rotation, 0));
+                var bounds = new HabitatBounds(new Vector2(24, 13), camera);
+                Vector3 position = new Vector3(2, 0, 0);
+                Vector3 heading = bounds.Redirect(position, Vector3.left);
+                Assert.That(Vector3.Dot(heading, Vector3.right), Is.GreaterThan(0.9f));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
         [TestCase(13, 0)] [TestCase(-13, 0)] [TestCase(0, 8)] [TestCase(0, -8)] [TestCase(20, 15)]
         public void EscapedAnimalTurnsTowardHabitat(float x, float z)
         {
@@ -203,6 +220,51 @@ namespace ZooWorld.Tests
         {
             var bounds = new HabitatBounds(new Vector2(24, 13), null);
             Assert.That(bounds.Redirect(Vector3.zero, Vector3.right), Is.EqualTo(Vector3.right));
+        }
+    }
+
+    public sealed class ConfigurationTests
+    {
+        [TestCase(float.NaN)] [TestCase(float.PositiveInfinity)]
+        public void NonFiniteHabitatIsRejected(float value)
+        {
+            var settings = UnityEngine.Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<SimulationSettings>("Assets/ZooWorld/Data/Simulation.asset"));
+            try
+            {
+                settings.HabitatSize = new Vector2(value, 13);
+                Assert.Throws<InvalidOperationException>(() => settings.Validate());
+            }
+            finally { UnityEngine.Object.DestroyImmediate(settings); }
+        }
+
+        [TestCase("Mass")] [TestCase("SpawnWeight")] [TestCase("TurnSpeed")]
+        public void NonFiniteSpeciesSettingIsRejected(string field)
+        {
+            var species = UnityEngine.Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<AnimalDefinition>("Assets/ZooWorld/Data/Frog.asset"));
+            try
+            {
+                typeof(AnimalDefinition).GetField(field).SetValue(species, float.PositiveInfinity);
+                Assert.That(species.IsValid, Is.False);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(species); }
+        }
+
+        [Test] public void InvalidMovementIsRejectedBeforeSimulationStarts()
+        {
+            var settings = UnityEngine.Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<SimulationSettings>("Assets/ZooWorld/Data/Simulation.asset"));
+            var species = UnityEngine.Object.Instantiate(settings.Species[0]);
+            var movement = ScriptableObject.CreateInstance<HopMovementDefinition>();
+            try
+            {
+                movement.Duration = movement.Interval + 1;
+                species.Movement = movement; settings.Species = new[] { species };
+                Assert.Throws<InvalidOperationException>(() => settings.Validate());
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(settings); UnityEngine.Object.DestroyImmediate(species);
+                UnityEngine.Object.DestroyImmediate(movement);
+            }
         }
     }
 }

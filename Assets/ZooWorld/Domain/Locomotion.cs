@@ -19,7 +19,11 @@ namespace ZooWorld.Domain
             if (speed <= 0 || float.IsNaN(speed) || float.IsInfinity(speed)) throw new ArgumentOutOfRangeException(nameof(speed));
             this.speed = speed;
         }
-        public MotionStep Step(float deltaTime) => new MotionStep(speed * Math.Max(0, deltaTime), 0);
+        public MotionStep Step(float deltaTime)
+        {
+            SimulationTime.ValidateDelta(deltaTime);
+            return new MotionStep(speed * deltaTime, 0);
+        }
     }
 
     /// <summary>Analytical travel keeps each jump's distance fixed even when a tick crosses its end.</summary>
@@ -40,8 +44,9 @@ namespace ZooWorld.Domain
 
         public MotionStep Step(float deltaTime)
         {
+            SimulationTime.ValidateDelta(deltaTime);
             double previous = time;
-            time += Math.Max(0, deltaTime);
+            time += deltaTime;
             double phase = time % interval;
             float elevation = phase < duration ? height * (float)Math.Sin(Math.PI * phase / duration) : 0;
             return new MotionStep((float)(TravelAt(time) - TravelAt(previous)), elevation);

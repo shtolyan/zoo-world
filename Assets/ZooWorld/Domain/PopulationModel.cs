@@ -26,10 +26,20 @@ namespace ZooWorld.Domain
 
         public PopulationModel(FoodChain foodChain) => this.foodChain = foodChain ?? throw new ArgumentNullException(nameof(foodChain));
 
-        public AnimalLife Register(Diet diet)
+        /// <summary>Prepare the runtime object before publishing its life. A failed preparation changes no counters.</summary>
+        public AnimalLife Register(Diet diet, Action<AnimalLife> prepare = null)
         {
             if (diet != Diet.Prey && diet != Diet.Predator) throw new ArgumentOutOfRangeException(nameof(diet));
             var life = new AnimalLife(++nextId, diet);
+            try
+            {
+                prepare?.Invoke(life);
+            }
+            catch
+            {
+                life.End();
+                throw;
+            }
             living.Add(life.Id, life);
             var s = Snapshot;
             Snapshot = new PopulationSnapshot(s.LivingPrey + (diet == Diet.Prey ? 1 : 0),
@@ -38,10 +48,16 @@ namespace ZooWorld.Domain
             return life;
         }
 
+        public bool TryResolve(AnimalLife first, AnimalLife second, out Predation predation)
+        {
+            predation = default;
+            return Owns(first) && Owns(second) && foodChain.TryResolve(first, second, out predation);
+        }
+
         public bool TryEncounter(AnimalLife first, AnimalLife second, out Predation predation)
         {
             predation = default;
-            if (!Owns(first) || !Owns(second) || !foodChain.TryResolve(first, second, out predation)) return false;
+            if (!TryResolve(first, second, out predation)) return false;
             // End the life BEFORE events or Unity deactivation: both collision callbacks may arrive this step.
             predation.Victim.End();
             living.Remove(predation.Victim.Id);

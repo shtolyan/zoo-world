@@ -17,6 +17,11 @@ namespace ZooWorld
         public event Action PauseRequested, SpeedRequested, ResetRequested;
         public event Action SoundRequested;
         public event Action<int> SpawnRequested;
+        private int lastElapsedSecond = -1;
+        private int lastArrivalTenth = -1;
+        private bool? lastPaused;
+        private bool? lastFast;
+        private bool? lastMuted;
 
         private void Awake()
         {
@@ -41,14 +46,36 @@ namespace ZooWorld
 
         public void PresentTime(float elapsed, float nextSpawn, bool paused, bool fast)
         {
-            Elapsed.text = $"{(int)elapsed / 60:00}:{(int)elapsed % 60:00}";
-            NextSpawn.text = paused ? "SPAWNING PAUSED" : $"NEXT ARRIVAL   {nextSpawn:0.0}s";
-            PauseCaption.text = paused ? "Resume" : "Pause";
-            SpeedCaption.text = fast ? "Speed  2x" : "Speed  1x";
-            StateCaption.text = paused ? "II   PAUSED" : "●   LIVE HABITAT";
+            int seconds = (int)elapsed;
+            int tenths = Mathf.RoundToInt(nextSpawn * 10);
+            if (lastElapsedSecond != seconds)
+            {
+                Elapsed.text = $"{seconds / 60:00}:{seconds % 60:00}";
+                lastElapsedSecond = seconds;
+            }
+            if (lastPaused != paused || (!paused && lastArrivalTenth != tenths))
+            {
+                NextSpawn.text = paused ? "SPAWNING PAUSED" : $"NEXT ARRIVAL   {tenths / 10f:0.0}s";
+                lastArrivalTenth = tenths;
+            }
+            if (lastPaused != paused)
+            {
+                PauseCaption.text = paused ? "Resume" : "Pause";
+                StateCaption.text = paused ? "II   PAUSED" : "●   LIVE HABITAT";
+                lastPaused = paused;
+            }
+            if (lastFast != fast)
+            {
+                SpeedCaption.text = fast ? "Speed  2x" : "Speed  1x";
+                lastFast = fast;
+            }
         }
 
         public void PresentAudio(bool muted)
-        { if (SoundCaption != null) SoundCaption.text = muted ? "Sound off [M]" : "Sound on [M]"; }
+        {
+            if (lastMuted == muted) return;
+            if (SoundCaption != null) SoundCaption.text = muted ? "Sound off [M]" : "Sound on [M]";
+            lastMuted = muted;
+        }
     }
 }

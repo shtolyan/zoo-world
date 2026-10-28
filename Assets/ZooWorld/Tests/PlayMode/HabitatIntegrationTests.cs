@@ -41,6 +41,23 @@ namespace ZooWorld.Tests
             Assert.That(prey.gameObject.activeSelf, Is.False);
         }
 
+        [UnityTest] public IEnumerator IncompletePrefabCannotCreateAGhostPopulationEntry()
+        {
+            var definition = Object.Instantiate(simulation.Settings.Species[0]);
+            var prefab = new GameObject("Incomplete species", typeof(AnimalAgent));
+            prefab.SetActive(false);
+            definition.Prefab = prefab.GetComponent<AnimalAgent>();
+            try
+            {
+                Assert.Throws<System.ArgumentException>(() => simulation.SpawnAt(definition, Vector3.zero, Vector3.forward));
+                Assert.That(simulation.Model.Snapshot.TotalSpawned, Is.Zero);
+                Assert.That(simulation.ActiveAnimals.Count, Is.Zero);
+                Assert.That(simulation.Hud.Living.text, Is.EqualTo("00"));
+            }
+            finally { Object.Destroy(definition); Object.Destroy(prefab); }
+            yield return null;
+        }
+
         [UnityTest] public IEnumerator RealPredatorContactLeavesOneSurvivorAndOneDeath()
         {
             var first = simulation.SpawnAt(simulation.Settings.Species[1], Vector3.left * 0.3f, Vector3.right);

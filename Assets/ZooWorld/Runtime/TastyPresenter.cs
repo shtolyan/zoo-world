@@ -16,11 +16,18 @@ namespace ZooWorld
         private readonly RectTransform layer;
         private readonly Camera camera;
         private readonly Font font;
+        private readonly Canvas canvas;
         private readonly List<Toast> active = new List<Toast>();
         private readonly Stack<Toast> pool = new Stack<Toast>();
         public int VisibleCount => active.Count;
 
-        public TastyPresenter(RectTransform layer, Camera camera, Font font) { this.layer = layer; this.camera = camera; this.font = font; }
+        public TastyPresenter(RectTransform layer, Camera camera, Font font)
+        {
+            this.layer = layer;
+            this.camera = camera;
+            this.font = font;
+            canvas = layer.GetComponentInParent<Canvas>();
+        }
 
         public void Show(AnimalAgent eater)
         {
@@ -39,7 +46,7 @@ namespace ZooWorld
             {
                 var toast = active[i];
                 toast.Remaining -= deltaTime;
-                if (toast.Remaining <= 0 || !toast.Target.IsAlive || toast.Target.Life.Id != toast.LifeId)
+                if (toast.Remaining <= 0 || toast.Target == null || !toast.Target.IsAlive || toast.Target.Life.Id != toast.LifeId)
                 { Recycle(i); continue; }
                 Position(toast);
             }
@@ -50,9 +57,9 @@ namespace ZooWorld
         private void Position(Toast toast)
         {
             Vector3 point = camera.WorldToScreenPoint(toast.Target.transform.position);
-            var canvas = layer.GetComponentInParent<Canvas>();
             point.y -= 32 * canvas.scaleFactor;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(layer, point, null, out Vector2 local);
+            Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(layer, point, uiCamera, out Vector2 local);
             toast.Text.rectTransform.anchoredPosition = local;
             toast.Text.color = new Color(1, 0.91f, 0.6f, Mathf.Clamp01(toast.Remaining * 3));
         }

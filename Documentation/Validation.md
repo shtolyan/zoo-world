@@ -1,5 +1,27 @@
 # Validation
 
+## Responsibility refactor — 28 October 2026
+
+Unity **6000.4.6f1**, Apple M1: **62 EditMode + 24 PlayMode tests passed**, zero failures or skips. `bash Scripts/validate.sh` ran both suites; reports are `TestResults/refactor-editmode.xml` and `TestResults/refactor-playmode.xml` with JUnit equivalents.
+
+Additional coverage includes action clocks, invalid time steps, failed preparation with no population notification, initialized first activation and pool reuse, a new species recombining existing assets, pause during consumption, safe vertical headings, non-finite coordinates, teardown order, all 1000 weighted catalog entries, and large finite weight sums. Existing physics, bite, UI, spawn, sound and pooling checks continue to pass.
+
+The repeatable population probe writes `TestResults/population-scale.json`. Animals are evenly split between frogs and snakes (rounded toward frogs), spaced 10 world units apart in a large habitat. Each scenario warms up for 5 physics steps and measures the next 30 calls to `Physics.Simulate`; their script `FixedUpdate` runs outside the timing interval.
+
+| Animals | Dynamic bodies | Mean physics step | p95 | Maximum |
+| --- | --- | --- | --- | --- |
+| 25 | 169 | 0.224 ms | 0.255 ms | 0.274 ms |
+| 100 | 700 | 0.646 ms | 0.724 ms | 0.728 ms |
+| 200 | 1400 | 1.256 ms | 1.471 ms | 1.603 ms |
+
+All bodies retained finite positions and velocities, and every animal remained alive. These are Editor measurements of separated animals, excluding rendering and script updates. They establish a reproducible baseline, not a dense-crowd, long-session or player FPS guarantee. No player build was produced.
+
+## Code review fixes — 28 October 2026
+
+Unity **6000.4.6f1**: **44 EditMode + 16 PlayMode tests passed**, no failures or skipped cases. Reports: `TestResults/review-editmode.xml` and `TestResults/review-playmode.xml`, plus JUnit equivalents. Nine new regressions first failed on the reviewed source, then passed after fixing configuration validation and off-screen steering for translated/rotated cameras. The prefab regression also checks unchanged population, UI and active pool after rejecting a missing visual reference.
+
+Removed demo-builder deletions of unrelated scenes and input assets; verified statically without regenerating content. No player build was requested or produced. See [the code review](Review.md) for findings, strengths, specification differences and remaining improvement priorities.
+
 ## Head-contact bites — 28 October 2026
 
 Unity **6000.4.6f1**: **36 EditMode + 15 PlayMode tests passed**, no failures or skipped cases. Reports: `TestResults/bite-editmode.xml` and `TestResults/bite-playmode.xml` (plus JUnit equivalents).

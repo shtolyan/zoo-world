@@ -36,7 +36,7 @@ namespace ZooWorld.Domain
 
         public int Advance(float deltaTime)
         {
-            if (deltaTime < 0 || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime)) throw new ArgumentOutOfRangeException(nameof(deltaTime));
+            SimulationTime.ValidateDelta(deltaTime);
             remaining -= deltaTime;
             int due = 0;
             while (remaining <= 0) { due++; remaining += random.Range(minimum, maximum); }

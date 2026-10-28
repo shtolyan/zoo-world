@@ -13,13 +13,21 @@ namespace ZooWorld
         public Vector3 Redirect(Vector3 position, Vector3 direction)
         {
             Vector2 limit = halfSize - Vector2.one * 0.65f;
+            bool outside = Mathf.Abs(position.x) > limit.x || Mathf.Abs(position.z) > limit.y;
+            Vector3 target = Vector3.zero;
             if (camera != null)
             {
-                Vector3 corner = GroundPoint(new Vector2(1, 1));
-                limit = Vector2.Min(limit, new Vector2(Mathf.Abs(corner.x), Mathf.Abs(corner.z)) - Vector2.one * 0.65f);
+                // Test the actual viewport, including translated or rotated top-down cameras.
+                // One absolute corner only describes a camera centered at the world origin.
+                Vector3 viewport = camera.WorldToViewportPoint(position);
+                outside |= viewport.z <= 0 || viewport.x < 0.03f || viewport.x > 0.97f
+                    || viewport.y < 0.03f || viewport.y > 0.97f;
+                target = GroundPoint(new Vector2(0.5f, 0.5f));
+                target.x = Mathf.Clamp(target.x, -limit.x, limit.x);
+                target.z = Mathf.Clamp(target.z, -limit.y, limit.y);
             }
-            if (Mathf.Abs(position.x) <= limit.x && Mathf.Abs(position.z) <= limit.y) return direction;
-            var inward = new Vector3(-position.x, 0, -position.z);
+            if (!outside) return direction;
+            var inward = target - position; inward.y = 0;
             return inward.sqrMagnitude > 0.001f ? inward.normalized : Vector3.forward;
         }
 
@@ -39,7 +47,7 @@ namespace ZooWorld
         private Vector3 GroundPoint(Vector2 viewport)
         {
             var ray = camera.ViewportPointToRay(viewport);
-            return ground.Raycast(ray, out float distance) ? ray.GetPoint(distance) : new Vector3(halfSize.x, 0, halfSize.y);
+            return ground.Raycast(ray, out float distance) ? ray.GetPoint(distance) : Vector3.zero;
         }
     }
 }

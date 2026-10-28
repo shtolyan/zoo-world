@@ -16,6 +16,10 @@ namespace ZooWorld
         [Min(0)] public int InitialPopulation = 4;
         public Color Accent = Color.green;
 
-        public bool IsValid => Prefab != null && Movement != null && Mass > 0 && SpawnWeight > 0;
+        public bool IsValid => Prefab != null && Prefab.HasValidPresentation && Movement != null && Movement.IsValid
+            && (Diet == Diet.Prey || Diet == Diet.Predator) && InitialPopulation >= 0
+            && PositiveFinite(Mass) && PositiveFinite(SpawnWeight) && PositiveFinite(TurnSpeed);
+
+        private static bool PositiveFinite(float value) => value > 0 && !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }
